@@ -52,13 +52,13 @@ interface CountResult {
 
 export class DatabaseService {
     private db: Database;
-    
+
     constructor() {
         const dbPath = path.join(__dirname, '../../database/database.sqlite');
         this.db = new Database(dbPath);
         this.initializeDatabase();
     }
-    
+
     private initializeDatabase(): void {
         this.db.serialize(() => {
             // Create Players table
@@ -72,7 +72,7 @@ export class DatabaseService {
                     last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             `);
-            
+
             // Create QueueEntries table
             this.db.run(`
                 CREATE TABLE IF NOT EXISTS queue_entries (
@@ -83,7 +83,7 @@ export class DatabaseService {
                     FOREIGN KEY (player_id) REFERENCES players(player_id)
                 )
             `);
-            
+
             // Create Games table
             this.db.run(`
                 CREATE TABLE IF NOT EXISTS games (
@@ -94,7 +94,7 @@ export class DatabaseService {
                     default_state TEXT
                 )
             `);
-            
+
             // Create Matches table
             this.db.run(`
                 CREATE TABLE IF NOT EXISTS matches (
@@ -111,7 +111,7 @@ export class DatabaseService {
                     FOREIGN KEY (game_id) REFERENCES games(game_id)
                 )
             `);
-            
+
             // Create Turns table
             this.db.run(`
                 CREATE TABLE IF NOT EXISTS turns (
@@ -125,7 +125,7 @@ export class DatabaseService {
                     FOREIGN KEY (player_id) REFERENCES players(player_id)
                 )
             `);
-            
+
             // Insert default game
             this.db.run(`
                 INSERT OR IGNORE INTO games (game_id, name, description, rules, default_state)
@@ -133,7 +133,7 @@ export class DatabaseService {
             `);
         });
     }
-    
+
     // Players
     async getPlayer(playerId: number): Promise<Player | undefined> {
         return new Promise((resolve, reject) => {
@@ -147,7 +147,7 @@ export class DatabaseService {
             );
         });
     }
-    
+
     async getPlayerByUsername(username: string): Promise<Player | undefined> {
         return new Promise((resolve, reject) => {
             this.db.get<Player>(
@@ -160,19 +160,19 @@ export class DatabaseService {
             );
         });
     }
-    
+
     async createPlayer(username: string, ip: string, port: number): Promise<Player> {
         const self = this; // Capture the reference to 'this' in a variable
-        
+
         return new Promise((resolve, reject) => {
             this.db.run(
                 'INSERT INTO players (username, ip_address, port) VALUES (?, ?, ?)',
                 [username, ip, port],
-                function(this: { lastID: number }, err: Error | null) {
+                function (this: { lastID: number }, err: Error | null) {
                     if (err) return reject(err);
-                    
+
                     const lastId = this.lastID;
-                    
+
                     // Use 'self.db' instead of 'this.db'
                     self.db.get<Player>(
                         'SELECT * FROM players WHERE player_id = ?',
@@ -187,7 +187,7 @@ export class DatabaseService {
             );
         });
     }
-    
+
     async updatePlayerLastActive(playerId: number): Promise<void> {
         return new Promise((resolve, reject) => {
             this.db.run(
@@ -200,29 +200,29 @@ export class DatabaseService {
             );
         });
     }
-    
+
     // Queue
     async addPlayerToQueue(playerId: number, username: string): Promise<{ queue_id: number }> {
         // First ensure player exists
         let player = await this.getPlayer(playerId);
-        
+
         if (!player) {
             player = await this.createPlayer(username, '', 0);
             playerId = player.player_id;
         }
-        
+
         return new Promise((resolve, reject) => {
             this.db.run(
                 'INSERT INTO queue_entries (player_id) VALUES (?)',
                 [playerId],
-                function(this: { lastID: number }, err: Error | null) {
+                function (this: { lastID: number }, err: Error | null) {
                     if (err) return reject(err);
                     resolve({ queue_id: this.lastID });
                 }
             );
         });
     }
-    
+
     async getPlayersInQueue(): Promise<Array<QueueEntry & { username: string }>> {
         return new Promise((resolve, reject) => {
             this.db.all(
@@ -239,7 +239,7 @@ export class DatabaseService {
             );
         });
     }
-    
+
     // Matches
     async createMatch(player1Id: number, player2Id: number, gameId: number = 1): Promise<Match> {
         const self = this;
@@ -247,17 +247,17 @@ export class DatabaseService {
             this.db.run(
                 'INSERT INTO matches (player1_id, player2_id, game_id) VALUES (?, ?, ?)',
                 [player1Id, player2Id, gameId],
-                function(this: { lastID: number }, err: Error | null) {
+                function (this: { lastID: number }, err: Error | null) {
                     if (err) return reject(err);
-                    
+
                     const lastId = this.lastID;
-                    
+
                     // Update queue entries status
                     self.db.run(
                         "UPDATE queue_entries SET status = 'matched' WHERE player_id IN (?, ?)",
                         [player1Id, player2Id]
                     );
-                    
+
                     // Get the created match
                     self.db.get<Match>(
                         'SELECT * FROM matches WHERE match_id = ?',
@@ -272,7 +272,7 @@ export class DatabaseService {
             );
         });
     }
-    
+
     async getMatch(matchId: number): Promise<Match | undefined> {
         return new Promise((resolve, reject) => {
             this.db.get<Match>(
@@ -280,7 +280,7 @@ export class DatabaseService {
                 [matchId],
                 (err: Error | null, row?: Match) => {
                     if (err) return reject(err);
-                    
+
                     if (row && row.game_state && typeof row.game_state === 'string') {
                         try {
                             row.game_state = JSON.parse(row.game_state);
@@ -288,13 +288,13 @@ export class DatabaseService {
                             console.error("Failed to parse game state:", e);
                         }
                     }
-                    
+
                     resolve(row);
                 }
             );
         });
     }
-    
+
     async updateMatchState(matchId: number, state: any): Promise<void> {
         return new Promise((resolve, reject) => {
             this.db.run(
@@ -307,7 +307,7 @@ export class DatabaseService {
             );
         });
     }
-    
+
     async finishMatch(matchId: number, winnerId: number | null): Promise<void> {
         return new Promise((resolve, reject) => {
             this.db.run(
@@ -320,7 +320,7 @@ export class DatabaseService {
             );
         });
     }
-    
+
     async getActiveMatchesForPlayer(playerId: number): Promise<Match[]> {
         return new Promise((resolve, reject) => {
             this.db.all<Match>(
@@ -330,7 +330,7 @@ export class DatabaseService {
                 [playerId, playerId],
                 (err: Error | null, rows?: Match[]) => {
                     if (err) return reject(err);
-                    
+
                     if (rows) {
                         for (const row of rows) {
                             if (row.game_state && typeof row.game_state === 'string') {
@@ -342,13 +342,13 @@ export class DatabaseService {
                             }
                         }
                     }
-                    
+
                     resolve(rows || []);
                 }
             );
         });
     }
-    
+
     // Turns
     async recordTurn(matchId: number, playerId: number, move: any): Promise<{ turn_id: number }> {
         return new Promise((resolve, reject) => {
@@ -358,14 +358,14 @@ export class DatabaseService {
                 [matchId],
                 (err: Error | null, row?: CountResult) => {
                     if (err) return reject(err);
-                    
+
                     const turnNumber = (row?.count || 0) + 1;
-                    
+
                     // Insert new turn
                     this.db.run(
                         'INSERT INTO turns (match_id, player_id, move_data, turn_number) VALUES (?, ?, ?, ?)',
                         [matchId, playerId, JSON.stringify(move), turnNumber],
-                        function(this: { lastID: number }, err: Error | null) {
+                        function (this: { lastID: number }, err: Error | null) {
                             if (err) return reject(err);
                             resolve({ turn_id: this.lastID });
                         }
@@ -374,7 +374,7 @@ export class DatabaseService {
             );
         });
     }
-    
+
     async getMatchTurns(matchId: number): Promise<Array<Turn & { username: string }>> {
         return new Promise((resolve, reject) => {
             this.db.all<Turn & { username: string }>(
@@ -386,7 +386,7 @@ export class DatabaseService {
                 [matchId],
                 (err: Error | null, rows?: Array<Turn & { username: string }>) => {
                     if (err) return reject(err);
-                    
+
                     if (rows) {
                         for (const row of rows) {
                             if (row.move_data && typeof row.move_data === 'string') {
@@ -398,13 +398,13 @@ export class DatabaseService {
                             }
                         }
                     }
-                    
+
                     resolve(rows || []);
                 }
             );
         });
     }
-    
+
     // Games
     async getGames(): Promise<Game[]> {
         return new Promise((resolve, reject) => {

@@ -20,7 +20,7 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// Route d'accueil
+// Home route
 app.get('/', (req, res) => {
     res.send(`
     <html>
@@ -342,10 +342,10 @@ async function processQueue() {
 function notifyMatchPlayers(match: ActiveMatch, winner: number | null) {
     const socket1 = playerSockets.get(match.player1Id);
     const socket2 = playerSockets.get(match.player2Id);
-    
+
     // Le joueur dont l'ID correspond au current_player doit jouer
     const isPlayer1Turn = match.gameState.current_player === 1;
-    
+
     if (socket1) {
         socket1.emit('game_update', {
             match_id: match.id,
@@ -355,7 +355,7 @@ function notifyMatchPlayers(match: ActiveMatch, winner: number | null) {
             winner: winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null
         });
     }
-    
+
     if (socket2) {
         socket2.emit('game_update', {
             match_id: match.id,
@@ -406,10 +406,10 @@ const queueCheckInterval = setInterval(processQueue, 5000);
 // Start server
 const PORT = process.env.PORT || 3000;
 server.listen({
-  port: PORT,
-  host: '0.0.0.0'
+    port: PORT,
+    host: '0.0.0.0'
 }, () => {
-  console.log(`Server running on port ${PORT}, accessible at http://0.0.0.0:${PORT}`);
+    console.log(`Server running on port ${PORT}, accessible at http://0.0.0.0:${PORT}`);
 });
 
 // Graceful shutdown

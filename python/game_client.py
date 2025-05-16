@@ -214,19 +214,19 @@ class GameClient:
         print(f"Current player in state: {state.get('current_player')}")
         print(f"Your turn (from server): {your_turn}")
         
-        # Déterminer si le joueur est le premier (player1) ou le second (player2)
-        # Le premier joueur utilise X, le second O
-        is_player1 = your_turn  # Si c'est votre tour au début, vous êtes le joueur 1
+        # Determine if the player is the first player (player1) or the second player (player2)
+        # The first player uses X, the second uses O
+        is_player1 = your_turn  # If it's your turn, you're player 1
         
         # If we're in a GUI, update the board
         if self.root and self.game_board:
-            # Définir les symboles en fonction de qui est le joueur 1 ou 2
+            # Set symbols based on whether the player is player 1 or 2
             if is_player1:
-                self.game_board.player_symbol = "X"  # Joueur 1 = X
-                self.game_board.opponent_symbol = "O"  # Joueur 2 = O
+                self.game_board.player_symbol = "X"  # Player 1 = X
+                self.game_board.opponent_symbol = "O"  # Player 2 = O
             else:
-                self.game_board.player_symbol = "O"  # Joueur 2 = O
-                self.game_board.opponent_symbol = "X"  # Joueur 1 = X
+                self.game_board.player_symbol = "O"  # Player 2 = O
+                self.game_board.opponent_symbol = "X"  # Player 1 = X
                 
             self.game_board.current_match = self.current_match
             self.root.after(0, lambda: self.game_board.reset_board())
