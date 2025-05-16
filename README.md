@@ -33,7 +33,7 @@ npm install
 
 3. Installer les dépendances Python
 ```bash
-pip install python-socketio aiohttp tkinter
+pip install python-socketio aiohttp
 ```
 
 ## Utilisation
