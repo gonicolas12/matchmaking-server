@@ -25,19 +25,82 @@ app.get('/', (req, res) => {
     res.send(`
     <html>
       <head>
-        <title>Matchmaking Server</title>
+        <title>Chess & Tic-Tac-Toe Matchmaking Server</title>
         <style>
-          body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-          h1 { color: #333; }
-          p { line-height: 1.6; }
+          body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+          }
+          .container {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+          }
+          h1 { color: #fff; text-align: center; margin-bottom: 30px; }
+          .game-card {
+            background: rgba(255,255,255,0.15);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border-left: 4px solid #ffd700;
+          }
+          .status { color: #4ade80; font-weight: bold; }
+          .feature-list { margin: 15px 0; }
+          .feature-list li { margin: 8px 0; }
         </style>
       </head>
       <body>
-        <h1>Matchmaking Server</h1>
-        <p>Le serveur de matchmaking est en cours d'exécution. Utilisez le client Python pour vous connecter.</p>
-        <p>Statut du serveur : <span style="color: green; font-weight: bold;">En ligne</span></p>
-        <p>Port : ${PORT}</p>
-        <p>Date de démarrage : ${new Date().toLocaleString()}</p>
+        <div class="container">
+          <h1>♔ Chess & Tic-Tac-Toe Matchmaking Server ♛</h1>
+          
+          <div class="game-card">
+            <h2>🏆 Available Games</h2>
+            <div class="feature-list">
+              <h3>♟️ Chess</h3>
+              <ul>
+                <li>Full chess rules implementation</li>
+                <li>Castling, en passant, pawn promotion</li>
+                <li>Check, checkmate, and stalemate detection</li>
+                <li>Beautiful Unicode piece display</li>
+                <li>Move highlighting and validation</li>
+              </ul>
+              
+              <h3>⭕ Tic-Tac-Toe</h3>
+              <ul>
+                <li>Classic 3x3 grid gameplay</li>
+                <li>Simple and fast matches</li>
+                <li>Perfect for quick games</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="game-card">
+            <h2>📊 Server Status</h2>
+            <p>Status: <span class="status">Online</span></p>
+            <p>Port: ${PORT}</p>
+            <p>Started: ${new Date().toLocaleString()}</p>
+            <p>Active Players: <span id="playerCount">0</span></p>
+            <p>Active Matches: <span id="matchCount">0</span></p>
+          </div>
+          
+          <div class="game-card">
+            <h2>🎮 How to Play</h2>
+            <ol>
+              <li>Run the Python client: <code>python chess_client.py</code> or <code>python game_client.py</code></li>
+              <li>Enter your username</li>
+              <li>Connect to the server</li>
+              <li>Join the matchmaking queue</li>
+              <li>Wait for an opponent and enjoy the game!</li>
+            </ol>
+          </div>
+        </div>
       </body>
     </html>
   `);
@@ -53,6 +116,7 @@ interface Player {
     username: string;
     socketId: string;
     joinedAt: Date;
+    gameType?: string; // 'chess' or 'tic-tac-toe'
 }
 
 // In-memory storage for active matches
@@ -63,11 +127,13 @@ interface ActiveMatch {
     gameState: any;
     currentPlayer: number;
     isFinished: boolean;
+    gameType: string;
     playerMapping?: Record<number, number>;
 }
 
-// In-memory state
-let queue: Player[] = [];
+// Separate queues for different game types
+let chessQueue: Player[] = [];
+let ticTacToeQueue: Player[] = [];
 let activeMatches: Map<number, ActiveMatch> = new Map();
 let playerSockets: Map<number, Socket> = new Map();
 let socketPlayers: Map<string, number> = new Map();
@@ -81,6 +147,15 @@ app.get('/api/games', async (req, res) => {
         console.error("Error getting games:", error);
         res.status(500).json({ error: "Internal server error" });
     }
+});
+
+app.get('/api/stats', (req, res) => {
+    res.json({
+        chess_queue: chessQueue.length,
+        tictactoe_queue: ticTacToeQueue.length,
+        active_matches: activeMatches.size,
+        total_players: playerSockets.size
+    });
 });
 
 app.get('/api/players/:id', async (req, res) => {
@@ -130,41 +205,55 @@ io.on('connection', (socket: Socket) => {
         }
     });
 
-    // Handle queue joining
-    socket.on('join_queue', async (data: { player_id: number, username: string }) => {
+    // Handle queue joining with game type
+    socket.on('join_queue', async (data: { player_id: number, username: string, game_type?: string }) => {
         try {
-            const { player_id, username } = data;
+            const { player_id, username, game_type = 'tic-tac-toe' } = data;
 
             // Validate player
             if (!player_id) {
                 return socket.emit('error', { message: "Invalid player ID" });
             }
 
-            // Check if player is already in queue
-            const existingPlayer = queue.find(p => p.id === player_id);
-            if (existingPlayer) {
-                return socket.emit('error', { message: "Already in queue" });
+            // Validate game type
+            if (!['chess', 'tic-tac-toe'].includes(game_type)) {
+                return socket.emit('error', { message: "Invalid game type. Choose 'chess' or 'tic-tac-toe'" });
             }
+
+            // Remove player from all queues first
+            chessQueue = chessQueue.filter(p => p.id !== player_id);
+            ticTacToeQueue = ticTacToeQueue.filter(p => p.id !== player_id);
 
             // Add player to database queue
             await db.addPlayerToQueue(player_id, username);
 
-            // Add player to in-memory queue
+            // Add player to appropriate in-memory queue
             const player: Player = {
                 id: player_id,
                 username,
                 socketId: socket.id,
-                joinedAt: new Date()
+                joinedAt: new Date(),
+                gameType: game_type
             };
 
-            queue.push(player);
+            if (game_type === 'chess') {
+                chessQueue.push(player);
+                socket.emit('queue_joined', { 
+                    position: chessQueue.length,
+                    game_type: 'chess'
+                });
+                console.log(`Player ${username} joined chess queue. Queue size: ${chessQueue.length}`);
+                processChessQueue();
+            } else {
+                ticTacToeQueue.push(player);
+                socket.emit('queue_joined', { 
+                    position: ticTacToeQueue.length,
+                    game_type: 'tic-tac-toe'
+                });
+                console.log(`Player ${username} joined tic-tac-toe queue. Queue size: ${ticTacToeQueue.length}`);
+                processTicTacToeQueue();
+            }
 
-            socket.emit('queue_joined', { position: queue.length });
-
-            console.log(`Player ${username} (ID: ${player_id}) joined queue. Queue size: ${queue.length}`);
-
-            // Process queue immediately in case we can make a match
-            processQueue();
         } catch (error) {
             console.error("Error joining queue:", error);
             socket.emit('error', { message: "Failed to join queue" });
@@ -191,19 +280,17 @@ io.on('connection', (socket: Socket) => {
                     player2Id: dbMatch.player2_id,
                     gameState: dbMatch.game_state,
                     currentPlayer: dbMatch.game_state.current_player,
-                    isFinished: dbMatch.is_finished
+                    isFinished: dbMatch.is_finished,
+                    gameType: determineGameTypeFromState(dbMatch.game_state)
                 };
 
                 activeMatches.set(match_id, match);
             }
 
-            // Modification cruciale: déterminer le joueur actuel en fonction de l'ordre des joueurs, pas de l'ID
+            // Determine if it's the player's turn
             const isPlayer1 = player_id === match.player1Id;
             const isPlayer2 = player_id === match.player2Id;
 
-            // Si c'est au tour du joueur 1 (current_player = 1) et que le joueur est player1,
-            // OU si c'est au tour du joueur 2 (current_player = 2) et que le joueur est player2,
-            // alors c'est bien au tour du joueur
             const isPlayerTurn = (match.gameState.current_player === 1 && isPlayer1) ||
                 (match.gameState.current_player === 2 && isPlayer2);
 
@@ -212,7 +299,7 @@ io.on('connection', (socket: Socket) => {
                 return socket.emit('error', { message: "Not your turn" });
             }
 
-            // Pour appliquer le coup, nous devons mapper l'ID du joueur à 1 ou 2
+            // Map player ID to game player ID (1 or 2)
             const gamePlayerId = isPlayer1 ? 1 : 2;
 
             // Validate move with game logic
@@ -221,10 +308,10 @@ io.on('connection', (socket: Socket) => {
                 return socket.emit('error', { message: "Invalid move" });
             }
 
-            // Apply move to game state using the mapped ID
+            // Apply move to game state
             const newState = await gameLogic.applyMove(match.gameState, move, gamePlayerId);
 
-            // Record turn in database with the original player_id
+            // Record turn in database
             await db.recordTurn(match_id, player_id, move);
 
             // Update match state in database
@@ -233,6 +320,7 @@ io.on('connection', (socket: Socket) => {
             // Check for game over
             const winner = await gameLogic.checkWinner(newState);
             const isGameOver = await gameLogic.isGameOver(newState);
+            const isDraw = await gameLogic.isDraw(newState);
 
             // Update in-memory match
             match.gameState = newState;
@@ -240,22 +328,72 @@ io.on('connection', (socket: Socket) => {
 
             if (isGameOver) {
                 match.isFinished = true;
-                // Mapper le vainqueur de la logique de jeu (1 ou 2) à l'ID réel du joueur
-                // Si winner est null (match nul), on garde null
                 const realWinnerId = winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null;
                 await db.finishMatch(match_id, realWinnerId);
             }
 
-            // Update in-memory match
             activeMatches.set(match_id, match);
 
-            // Notify both players with updated logic for draw detection
-            notifyMatchPlayers(match, winner, isGameOver);
+            // Notify both players
+            notifyMatchPlayers(match, winner, isGameOver, isDraw);
 
-            console.log(`Move made in match ${match_id} by player ${player_id}. Game over: ${isGameOver}, Winner: ${winner || 'draw'}`);
+            console.log(`Move made in ${match.gameType} match ${match_id} by player ${player_id}. Game over: ${isGameOver}, Winner: ${winner || (isDraw ? 'draw' : 'none')}`);
         } catch (error) {
             console.error("Error handling move:", error);
             socket.emit('error', { message: "Failed to process move" });
+        }
+    });
+
+    // Handle resignation
+    socket.on('resign_match', async (data) => {
+        try {
+            const { match_id, player_id } = data;
+            
+            const match = activeMatches.get(match_id);
+            if (!match || match.isFinished) {
+                return socket.emit('error', { message: "Match not found or already finished" });
+            }
+
+            // Determine winner (opponent)
+            const winnerId = match.player1Id === player_id ? match.player2Id : match.player1Id;
+            
+            // Finish match
+            match.isFinished = true;
+            await db.finishMatch(match_id, winnerId);
+            activeMatches.set(match_id, match);
+
+            // Notify both players
+            const socket1 = playerSockets.get(match.player1Id);
+            const socket2 = playerSockets.get(match.player2Id);
+
+            if (socket1) {
+                socket1.emit('game_update', {
+                    match_id: match.id,
+                    state: match.gameState,
+                    your_turn: false,
+                    winner: winnerId,
+                    game_over: true,
+                    resignation: true,
+                    resigned_player: player_id
+                });
+            }
+
+            if (socket2) {
+                socket2.emit('game_update', {
+                    match_id: match.id,
+                    state: match.gameState,
+                    your_turn: false,
+                    winner: winnerId,
+                    game_over: true,
+                    resignation: true,
+                    resigned_player: player_id
+                });
+            }
+
+            console.log(`Player ${player_id} resigned from match ${match_id}`);
+        } catch (error) {
+            console.error("Error handling resignation:", error);
+            socket.emit('error', { message: "Failed to process resignation" });
         }
     });
 
@@ -270,25 +408,46 @@ io.on('connection', (socket: Socket) => {
     });
 });
 
-// Process the matchmaking queue
-async function processQueue() {
-    if (queue.length < 2) return;
+// Process chess matchmaking queue
+async function processChessQueue() {
+    if (chessQueue.length < 2) return;
 
     // Sort queue by join time
-    queue.sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
+    chessQueue.sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
 
     // Match first two players
-    const player1 = queue.shift();
-    const player2 = queue.shift();
+    const player1 = chessQueue.shift();
+    const player2 = chessQueue.shift();
 
     if (!player1 || !player2) return;
 
+    await createMatch(player1, player2, 'chess');
+}
+
+// Process tic-tac-toe matchmaking queue
+async function processTicTacToeQueue() {
+    if (ticTacToeQueue.length < 2) return;
+
+    // Sort queue by join time
+    ticTacToeQueue.sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
+
+    // Match first two players
+    const player1 = ticTacToeQueue.shift();
+    const player2 = ticTacToeQueue.shift();
+
+    if (!player1 || !player2) return;
+
+    await createMatch(player1, player2, 'tic-tac-toe');
+}
+
+// Create a match between two players
+async function createMatch(player1: Player, player2: Player, gameType: string) {
     try {
         // Create match in database
         const match = await db.createMatch(player1.id, player2.id);
 
         // Initialize game state
-        const gameState = await gameLogic.initializeGame('tic-tac-toe');
+        const gameState = await gameLogic.initializeGame(gameType);
 
         // Update match state in database
         await db.updateMatchState(match.match_id, gameState);
@@ -300,7 +459,8 @@ async function processQueue() {
             player2Id: player2.id,
             gameState,
             currentPlayer: gameState.current_player,
-            isFinished: false
+            isFinished: false,
+            gameType
         };
 
         // Add to active matches
@@ -310,13 +470,14 @@ async function processQueue() {
         const socket1 = playerSockets.get(player1.id);
         const socket2 = playerSockets.get(player2.id);
 
-        // Notify players - le premier joueur (player1) commence toujours
+        // Notify players
         if (socket1) {
             socket1.emit('match_found', {
                 match_id: match.match_id,
                 opponent: player2.username,
                 state: gameState,
-                your_turn: true  // Premier joueur (player1) commence toujours
+                your_turn: true,
+                game_type: gameType
             });
         }
 
@@ -325,26 +486,31 @@ async function processQueue() {
                 match_id: match.match_id,
                 opponent: player1.username,
                 state: gameState,
-                your_turn: false  // Deuxième joueur (player2) attend
+                your_turn: false,
+                game_type: gameType
             });
         }
 
-        console.log(`Match created: ${player1.username} vs ${player2.username} (Match ID: ${match.match_id})`);
+        console.log(`${gameType} match created: ${player1.username} vs ${player2.username} (Match ID: ${match.match_id})`);
     } catch (error) {
         console.error("Error creating match:", error);
 
         // Put players back in queue if match creation fails
-        if (player1) queue.push(player1);
-        if (player2) queue.push(player2);
+        if (gameType === 'chess') {
+            if (player1) chessQueue.push(player1);
+            if (player2) chessQueue.push(player2);
+        } else {
+            if (player1) ticTacToeQueue.push(player1);
+            if (player2) ticTacToeQueue.push(player2);
+        }
     }
 }
 
 // Notify players of match updates
-function notifyMatchPlayers(match: ActiveMatch, winner: number | null, isGameOver: boolean = false) {
+function notifyMatchPlayers(match: ActiveMatch, winner: number | null, isGameOver: boolean = false, isDraw: boolean = false) {
     const socket1 = playerSockets.get(match.player1Id);
     const socket2 = playerSockets.get(match.player2Id);
 
-    // Le joueur dont l'ID correspond au current_player doit jouer
     const isPlayer1Turn = match.gameState.current_player === 1 && !isGameOver;
 
     if (socket1) {
@@ -352,10 +518,9 @@ function notifyMatchPlayers(match: ActiveMatch, winner: number | null, isGameOve
             match_id: match.id,
             state: match.gameState,
             your_turn: isPlayer1Turn,
-            // Mapper le vainqueur du jeu (1 ou 2) à l'ID réel du joueur pour la notification
             winner: winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null,
             game_over: isGameOver,
-            is_draw: isGameOver && winner === null
+            is_draw: isDraw
         });
     }
 
@@ -364,18 +529,18 @@ function notifyMatchPlayers(match: ActiveMatch, winner: number | null, isGameOve
             match_id: match.id,
             state: match.gameState,
             your_turn: !isPlayer1Turn && !isGameOver,
-            // Mapper le vainqueur du jeu (1 ou 2) à l'ID réel du joueur pour la notification
             winner: winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null,
             game_over: isGameOver,
-            is_draw: isGameOver && winner === null
+            is_draw: isDraw
         });
     }
 }
 
 // Handle player disconnection
 async function handlePlayerDisconnect(playerId: number, socketId: string) {
-    // Remove from queue if in queue
-    queue = queue.filter(p => p.id !== playerId);
+    // Remove from all queues
+    chessQueue = chessQueue.filter(p => p.id !== playerId);
+    ticTacToeQueue = ticTacToeQueue.filter(p => p.id !== playerId);
 
     // Remove socket associations
     playerSockets.delete(playerId);
@@ -402,11 +567,21 @@ async function handlePlayerDisconnect(playerId: number, socketId: string) {
         }
     }
 
-    console.log(`Player ${playerId} disconnected and removed from queue/matches`);
+    console.log(`Player ${playerId} disconnected and removed from queues/matches`);
 }
 
-// Start matchmaking processor at regular intervals
-const queueCheckInterval = setInterval(processQueue, 5000);
+// Utility function to determine game type from state
+function determineGameTypeFromState(state: any): string {
+    if (state && Array.isArray(state.board) && state.board.length === 8 &&
+        Array.isArray(state.board[0]) && state.board[0].length === 8) {
+        return 'chess';
+    }
+    return 'tic-tac-toe';
+}
+
+// Start matchmaking processors at regular intervals
+const chessQueueInterval = setInterval(processChessQueue, 3000);
+const ticTacToeQueueInterval = setInterval(processTicTacToeQueue, 3000);
 
 // Start server
 const PORT = process.env.PORT || 3000;
@@ -414,12 +589,16 @@ server.listen({
     port: PORT,
     host: '0.0.0.0'
 }, () => {
-    console.log(`Server running on port ${PORT}, accessible at http://0.0.0.0:${PORT}`);
+    console.log(`🚀 Chess & Tic-Tac-Toe Matchmaking Server running on port ${PORT}`);
+    console.log(`🌐 Access at http://0.0.0.0:${PORT}`);
+    console.log(`♟️  Chess client: python chess_client.py`);
+    console.log(`⭕ Tic-Tac-Toe client: python game_client.py`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-    clearInterval(queueCheckInterval);
+    clearInterval(chessQueueInterval);
+    clearInterval(ticTacToeQueueInterval);
     console.log('Shutting down server...');
     server.close(() => {
         console.log('Server closed');
