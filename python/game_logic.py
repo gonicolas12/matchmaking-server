@@ -76,8 +76,20 @@ class TicTacToeLogic:
         return None
     
     def is_game_over(self, state):
-        """Check if the game is over (draw)."""
-        return state["moves_count"] >= 9 or self.check_winner(state) is not None
+        """Check if the game is over (win or draw)."""
+        # Check if there's a winner
+        if self.check_winner(state) is not None:
+            return True
+        
+        # Check if it's a draw (all positions filled)
+        if state["moves_count"] >= 9:
+            return True
+            
+        return False
+    
+    def is_draw(self, state):
+        """Check if the game is a draw."""
+        return self.is_game_over(state) and self.check_winner(state) is None
 
 
 class GameLogicFactory:
@@ -124,6 +136,9 @@ def handle_request():
         elif action == "is_game_over":
             state = request.get("state")
             result = {"game_over": game_logic.is_game_over(state)}
+        elif action == "is_draw":
+            state = request.get("state")
+            result = {"is_draw": game_logic.is_draw(state)}
         else:
             result = {"error": f"Invalid action: {action}"}
         

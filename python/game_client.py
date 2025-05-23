@@ -244,6 +244,8 @@ class GameClient:
         state = data.get('state', {})
         your_turn = data.get('your_turn', False)
         winner = data.get('winner')
+        game_over = data.get('game_over', False)
+        is_draw = data.get('is_draw', False)
         
         # Ensure this is for our current match
         if match_id != self.current_match:
@@ -253,16 +255,30 @@ class GameClient:
         print(f"Your player_id: {self.player_id}")
         print(f"Current player in state: {state.get('current_player')}")
         print(f"Your turn (from server): {your_turn}")
+        print(f"Game over: {game_over}")
+        print(f"Winner: {winner}")
+        print(f"Is draw: {is_draw}")
         
         # If we're in a GUI, update the board
         if self.root and self.game_board:
             self.root.after(0, lambda: self.game_board.update_board(state))
-            self.root.after(0, lambda: self.game_board.set_turn(your_turn))
+            self.root.after(0, lambda: self.game_board.set_turn(your_turn and not game_over))
             
-            if winner is not None:
-                winner_text = "You won!" if winner == self.player_id else "You lost!"
-                self.root.after(0, lambda: self.game_board.update_status(winner_text))
-                self.root.after(0, lambda: messagebox.showinfo("Game Over", winner_text))
+            if game_over:
+                if is_draw:
+                    game_result = "It's a draw!"
+                    self.root.after(0, lambda: self.game_board.update_status("Game over - Draw!"))
+                    self.root.after(0, lambda: messagebox.showinfo("Game Over", "It's a draw!"))
+                elif winner == self.player_id:
+                    game_result = "You won!"
+                    self.root.after(0, lambda: self.game_board.update_status("You won!"))
+                    self.root.after(0, lambda: messagebox.showinfo("Game Over", "You won!"))
+                else:
+                    game_result = "You lost!"
+                    self.root.after(0, lambda: self.game_board.update_status("You lost!"))
+                    self.root.after(0, lambda: messagebox.showinfo("Game Over", "You lost!"))
+                
+                print(f"Game finished: {game_result}")
             elif your_turn:
                 self.root.after(0, lambda: self.game_board.update_status("Your turn"))
             else:

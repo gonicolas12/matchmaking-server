@@ -232,7 +232,7 @@ io.on('connection', (socket: Socket) => {
 
             // Check for game over
             const winner = await gameLogic.checkWinner(newState);
-            const isGameOver = winner || await gameLogic.isGameOver(newState);
+            const isGameOver = await gameLogic.isGameOver(newState);
 
             // Update in-memory match
             match.gameState = newState;
@@ -241,6 +241,7 @@ io.on('connection', (socket: Socket) => {
             if (isGameOver) {
                 match.isFinished = true;
                 // Mapper le vainqueur de la logique de jeu (1 ou 2) à l'ID réel du joueur
+                // Si winner est null (match nul), on garde null
                 const realWinnerId = winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null;
                 await db.finishMatch(match_id, realWinnerId);
             }
@@ -248,10 +249,10 @@ io.on('connection', (socket: Socket) => {
             // Update in-memory match
             activeMatches.set(match_id, match);
 
-            // Notify both players
-            notifyMatchPlayers(match, winner);
+            // Notify both players with updated logic for draw detection
+            notifyMatchPlayers(match, winner, isGameOver);
 
-            console.log(`Move made in match ${match_id} by player ${player_id}. Game over: ${isGameOver}`);
+            console.log(`Move made in match ${match_id} by player ${player_id}. Game over: ${isGameOver}, Winner: ${winner || 'draw'}`);
         } catch (error) {
             console.error("Error handling move:", error);
             socket.emit('error', { message: "Failed to process move" });
@@ -339,12 +340,12 @@ async function processQueue() {
 }
 
 // Notify players of match updates
-function notifyMatchPlayers(match: ActiveMatch, winner: number | null) {
+function notifyMatchPlayers(match: ActiveMatch, winner: number | null, isGameOver: boolean = false) {
     const socket1 = playerSockets.get(match.player1Id);
     const socket2 = playerSockets.get(match.player2Id);
 
     // Le joueur dont l'ID correspond au current_player doit jouer
-    const isPlayer1Turn = match.gameState.current_player === 1;
+    const isPlayer1Turn = match.gameState.current_player === 1 && !isGameOver;
 
     if (socket1) {
         socket1.emit('game_update', {
@@ -352,7 +353,9 @@ function notifyMatchPlayers(match: ActiveMatch, winner: number | null) {
             state: match.gameState,
             your_turn: isPlayer1Turn,
             // Mapper le vainqueur du jeu (1 ou 2) à l'ID réel du joueur pour la notification
-            winner: winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null
+            winner: winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null,
+            game_over: isGameOver,
+            is_draw: isGameOver && winner === null
         });
     }
 
@@ -360,9 +363,11 @@ function notifyMatchPlayers(match: ActiveMatch, winner: number | null) {
         socket2.emit('game_update', {
             match_id: match.id,
             state: match.gameState,
-            your_turn: !isPlayer1Turn,
+            your_turn: !isPlayer1Turn && !isGameOver,
             // Mapper le vainqueur du jeu (1 ou 2) à l'ID réel du joueur pour la notification
-            winner: winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null
+            winner: winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null,
+            game_over: isGameOver,
+            is_draw: isGameOver && winner === null
         });
     }
 }
