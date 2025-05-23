@@ -1,5 +1,5 @@
 """
-Chess Game Logic for Matchmaking Server
+Chess Game Logic for Matchmaking Server - FIXED VERSION
 
 This script implements chess game logic with all standard rules.
 """
@@ -75,9 +75,9 @@ class ChessLogic:
             board[7][col] = {"type": piece_order[col], "color": 1}  # White pieces
         
         return board
-    
+
     def validate_move(self, state, move, player_id):
-        """Validate if a move is legal."""
+        """Validate if a move is legal - PRODUCTION VERSION (no debug prints)."""
         try:
             # Check if it's the player's turn
             if state["current_player"] != player_id:
@@ -94,27 +94,38 @@ class ChessLogic:
             
             # Check bounds
             if not (0 <= from_row < 8 and 0 <= from_col < 8 and 
-                   0 <= to_row < 8 and 0 <= to_col < 8):
+                0 <= to_row < 8 and 0 <= to_col < 8):
                 return False
             
             board = state["board"]
+            
+            if not board or len(board) != 8:
+                return False
+            
             piece = board[from_row][from_col]
             
             # Check if there's a piece at the starting position
-            if not piece or piece["color"] != player_id:
+            if not piece:
+                return False
+                
+            if piece["color"] != player_id:
                 return False
             
             # Check if move is valid for the piece type
-            if not self._is_valid_piece_move(board, from_pos, to_pos, piece, state):
+            piece_move_valid = self._is_valid_piece_move(board, from_pos, to_pos, piece, state)
+            
+            if not piece_move_valid:
                 return False
             
             # Check if move would put own king in check
-            if self._would_be_in_check_after_move(state, from_pos, to_pos, player_id):
+            would_be_check = self._would_be_in_check_after_move(state, from_pos, to_pos, player_id)
+            
+            if would_be_check:
                 return False
             
             return True
-            
-        except Exception:
+                
+        except Exception as e:
             return False
     
     def _is_valid_piece_move(self, board, from_pos, to_pos, piece, state):
@@ -145,7 +156,7 @@ class ChessLogic:
         return False
     
     def _is_valid_pawn_move(self, board, from_pos, to_pos, color, state):
-        """Validate pawn move including en passant."""
+        """Validate pawn move - PRODUCTION VERSION."""
         from_row, from_col = from_pos
         to_row, to_col = to_pos
         
@@ -166,6 +177,8 @@ class ChessLogic:
                 return True
             elif row_diff == 2 * direction and from_row == start_row:  # Double step from start
                 return True
+            else:
+                return False
         
         # Diagonal capture
         elif col_diff == 1 and row_diff == direction:
@@ -176,6 +189,8 @@ class ChessLogic:
             en_passant = state.get("en_passant_target")
             if en_passant and en_passant == [to_row, to_col]:
                 return True
+            
+            return False
         
         return False
     
@@ -405,6 +420,11 @@ class ChessLogic:
         """Check if the player's king is in check."""
         color = "white" if player_id == 1 else "black"
         king_pos = state["king_positions"][color]
+        
+        # Convert tuple to list if needed
+        if isinstance(king_pos, tuple):
+            king_pos = list(king_pos)
+        
         opponent_id = 1 if player_id == 2 else 2
         
         # Check if any opponent piece can attack the king
@@ -471,16 +491,37 @@ class ChessLogic:
         """Check if player has any legal moves."""
         board = state["board"]
         
+        # Avoid infinite recursion by using a simpler check
         for from_row in range(8):
             for from_col in range(8):
                 piece = board[from_row][from_col]
                 if piece and piece["color"] == player_id:
                     for to_row in range(8):
                         for to_col in range(8):
-                            move = {"from": [from_row, from_col], "to": [to_row, to_col]}
-                            if self.validate_move(state, move, player_id):
+                            # Simple validation without full recursion
+                            if self._is_simple_valid_move(state, from_row, from_col, to_row, to_col, player_id):
                                 return True
         return False
+    
+    def _is_simple_valid_move(self, state, from_row, from_col, to_row, to_col, player_id):
+        """Simple move validation to avoid recursion."""
+        board = state["board"]
+        piece = board[from_row][from_col]
+        
+        if not piece or piece["color"] != player_id:
+            return False
+        
+        # Basic bounds check
+        if not (0 <= to_row < 8 and 0 <= to_col < 8):
+            return False
+        
+        # Can't capture own piece
+        target = board[to_row][to_col]
+        if target and target["color"] == piece["color"]:
+            return False
+        
+        # Basic piece movement (simplified)
+        return self._is_valid_piece_move(board, (from_row, from_col), (to_row, to_col), piece, state)
     
     def check_winner(self, state):
         """Check if there's a winner."""

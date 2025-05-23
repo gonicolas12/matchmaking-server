@@ -5,6 +5,8 @@ import path from 'path';
 import cors from 'cors';
 import { DatabaseService } from './services/database';
 import { GameLogicService } from './services/gamelogic';
+import { networkInterfaces } from 'os';
+
 
 // Initialize Express
 const app = express();
@@ -590,9 +592,10 @@ server.listen({
     host: '0.0.0.0'
 }, () => {
     console.log(`🚀 Chess & Tic-Tac-Toe Matchmaking Server running on port ${PORT}`);
-    console.log(`🌐 Access at http://0.0.0.0:${PORT}`);
-    console.log(`♟️  Chess client: python chess_client.py`);
-    console.log(`⭕ Tic-Tac-Toe client: python game_client.py`);
+    console.log(`🌐 Local access: http://localhost:${PORT}`);
+    console.log(`🌐 Network access: http://0.0.0.0:${PORT}`);
+    console.log(`♟️  Chess client: python chess_client.py http://YOUR_IP:${PORT}`);
+    console.log(`⭕ Tic-Tac-Toe client: python game_client.py http://YOUR_IP:${PORT}`);
 });
 
 // Graceful shutdown
@@ -605,3 +608,23 @@ process.on('SIGINT', async () => {
         process.exit(0);
     });
 });
+
+
+function getLocalIP(): string {
+    const nets = networkInterfaces();
+    const results = Object.create(null);
+
+    for (const name of Object.keys(nets)) {
+        for (const net of nets[name]!) {
+            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+            if (net.family === 'IPv4' && !net.internal) {
+                if (!results[name]) {
+                    results[name] = [];
+                }
+                results[name].push(net.address);
+                return net.address; // Return first found IP
+            }
+        }
+    }
+    return 'localhost';
+}

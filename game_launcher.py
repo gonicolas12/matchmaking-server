@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-Game Launcher for Matchmaking Server
+Game Launcher for Matchmaking Server - FIXED VERSION
 
 This script allows users to choose between Chess and Tic-Tac-Toe
-and launches the appropriate client.
+and launches the appropriate client with proper IP handling.
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 import subprocess
 import sys
 import os
+import socket
 from pathlib import Path
 
 class GameLauncher:
@@ -22,29 +23,39 @@ class GameLauncher:
         
         self.root = tk.Tk()
         self.root.title("Game Launcher - Matchmaking Server")
-        self.root.geometry("500x400")
         self.root.configure(bg="#2c3e50")
         
-        # Center window
-        self.center_window()
+        # Auto-resize and center window
+        self.setup_window()
         
         # Create GUI
         self.create_widgets()
     
+    def setup_window(self):
+        """Setup window size and position."""
+        # Let tkinter auto-size based on content
+        self.root.update_idletasks()
+        
+        # Set minimum size
+        self.root.minsize(600, 600)
+        
+        # Center window
+        self.center_window()
+    
     def center_window(self):
         """Center the window on screen."""
         self.root.update_idletasks()
-        width = self.root.winfo_width()
-        height = self.root.winfo_height()
+        width = max(600, self.root.winfo_reqwidth())
+        height = max(500, self.root.winfo_reqheight())
         x = (self.root.winfo_screenwidth() // 2) - (width // 2)
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
-        self.root.geometry(f"+{x}+{y}")
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
     
     def create_widgets(self):
         """Create the main GUI widgets."""
-        # Main frame
-        main_frame = tk.Frame(self.root, bg="#2c3e50", padx=30, pady=30)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Main frame with padding
+        main_frame = tk.Frame(self.root, bg="#2c3e50")
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         # Title
         title_label = tk.Label(
@@ -54,7 +65,7 @@ class GameLauncher:
             fg="white", 
             font=('Arial', 20, 'bold')
         )
-        title_label.pack(pady=(0, 20))
+        title_label.pack(pady=(0, 10))
         
         # Subtitle
         subtitle_label = tk.Label(
@@ -64,140 +75,75 @@ class GameLauncher:
             fg="#bdc3c7",
             font=('Arial', 12)
         )
-        subtitle_label.pack(pady=(0, 30))
+        subtitle_label.pack(pady=(0, 20))
         
-        # Games frame
+        # Games frame - horizontal layout
         games_frame = tk.Frame(main_frame, bg="#2c3e50")
-        games_frame.pack(pady=20)
+        games_frame.pack(pady=15, fill=tk.X)
         
-        # Chess button
-        chess_frame = tk.Frame(games_frame, bg="#34495e", relief=tk.RAISED, bd=3)
-        chess_frame.pack(side=tk.LEFT, padx=20, pady=10)
+        # Chess game card
+        self.create_game_card(games_frame, "left", 
+                             icon="♛♚♜♞♝♟", 
+                             title="CHESS",
+                             description="Full chess with all rules\nCastling, en passant, promotion\nCheck, checkmate, stalemate",
+                             button_text="Play Chess",
+                             button_color="#27ae60",
+                             command=self.launch_chess)
         
-        chess_icon = tk.Label(
-            chess_frame,
-            text="♛♚♜♞♝♟",
-            bg="#34495e",
-            fg="white",
-            font=('Arial', 24)
-        )
-        chess_icon.pack(pady=10)
-        
-        chess_title = tk.Label(
-            chess_frame,
-            text="CHESS",
-            bg="#34495e",
-            fg="white",
-            font=('Arial', 16, 'bold')
-        )
-        chess_title.pack()
-        
-        chess_desc = tk.Label(
-            chess_frame,
-            text="Full chess with all rules\nCastling, en passant, promotion\nCheck, checkmate, stalemate",
-            bg="#34495e",
-            fg="#bdc3c7",
-            font=('Arial', 10),
-            justify=tk.CENTER
-        )
-        chess_desc.pack(pady=10)
-        
-        chess_button = tk.Button(
-            chess_frame,
-            text="Play Chess",
-            command=self.launch_chess,
-            bg="#27ae60",
-            fg="white",
-            font=('Arial', 12, 'bold'),
-            padx=20,
-            pady=10,
-            cursor="hand2"
-        )
-        chess_button.pack(pady=(10, 20))
-        
-        # Tic-Tac-Toe button
-        ttt_frame = tk.Frame(games_frame, bg="#34495e", relief=tk.RAISED, bd=3)
-        ttt_frame.pack(side=tk.RIGHT, padx=20, pady=10)
-        
-        ttt_icon = tk.Label(
-            ttt_frame,
-            text="⭕❌⭕\n❌⭕❌\n⭕❌⭕",
-            bg="#34495e",
-            fg="white",
-            font=('Arial', 16)
-        )
-        ttt_icon.pack(pady=10)
-        
-        ttt_title = tk.Label(
-            ttt_frame,
-            text="TIC-TAC-TOE",
-            bg="#34495e",
-            fg="white",
-            font=('Arial', 16, 'bold')
-        )
-        ttt_title.pack()
-        
-        ttt_desc = tk.Label(
-            ttt_frame,
-            text="Classic 3x3 grid game\nSimple and fast\nPerfect for quick matches",
-            bg="#34495e",
-            fg="#bdc3c7",
-            font=('Arial', 10),
-            justify=tk.CENTER
-        )
-        ttt_desc.pack(pady=10)
-        
-        ttt_button = tk.Button(
-            ttt_frame,
-            text="Play Tic-Tac-Toe",
-            command=self.launch_tictactoe,
-            bg="#3498db",
-            fg="white",
-            font=('Arial', 12, 'bold'),
-            padx=20,
-            pady=10,
-            cursor="hand2"
-        )
-        ttt_button.pack(pady=(10, 20))
+        # Tic-Tac-Toe game card
+        self.create_game_card(games_frame, "right",
+                             icon="⭕❌⭕\n❌⭕❌\n⭕❌⭕",
+                             title="TIC-TAC-TOE", 
+                             description="Classic 3x3 grid game\nSimple and fast\nPerfect for quick matches",
+                             button_text="Play Tic-Tac-Toe",
+                             button_color="#3498db",
+                             command=self.launch_tictactoe)
         
         # Server settings frame
-        settings_frame = tk.Frame(main_frame, bg="#2c3e50")
-        settings_frame.pack(pady=30, fill=tk.X)
+        settings_frame = tk.LabelFrame(main_frame, text="Server Settings", 
+                                      bg="#34495e", fg="white", font=('Arial', 12, 'bold'),
+                                      relief=tk.RAISED, bd=2)
+        settings_frame.pack(pady=20, fill=tk.X, padx=10)
         
-        server_label = tk.Label(
-            settings_frame,
-            text="Server URL:",
-            bg="#2c3e50",
-            fg="white",
-            font=('Arial', 12)
-        )
-        server_label.pack()
+        # Server URL input
+        url_frame = tk.Frame(settings_frame, bg="#34495e")
+        url_frame.pack(pady=10, padx=10, fill=tk.X)
         
-        self.server_entry = tk.Entry(
-            settings_frame,
-            font=('Arial', 11),
-            justify=tk.CENTER,
-            width=30
-        )
-        self.server_entry.pack(pady=5)
+        tk.Label(url_frame, text="Server URL:", bg="#34495e", fg="white", 
+                font=('Arial', 11)).pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.server_entry = tk.Entry(url_frame, font=('Arial', 11), width=40)
+        self.server_entry.pack(side=tk.LEFT, padx=(0, 10), fill=tk.X, expand=True)
         self.server_entry.insert(0, self.server_url)
         
-        # Update button
-        update_button = tk.Button(
-            settings_frame,
-            text="Update Server URL",
-            command=self.update_server_url,
-            bg="#f39c12",
-            fg="white",
-            font=('Arial', 10),
-            padx=15,
-            pady=5
-        )
-        update_button.pack(pady=10)
+        update_button = tk.Button(url_frame, text="Update", 
+                                 command=self.update_server_url,
+                                 bg="#f39c12", fg="white", font=('Arial', 10),
+                                 padx=15, pady=2)
+        update_button.pack(side=tk.RIGHT)
+        
+        # IP helper buttons
+        ip_frame = tk.Frame(settings_frame, bg="#34495e")
+        ip_frame.pack(pady=(0, 10), padx=10, fill=tk.X)
+        
+        tk.Button(ip_frame, text="Use Localhost", 
+                 command=lambda: self.set_server_url("http://localhost:3000"),
+                 bg="#95a5a6", fg="white", font=('Arial', 9),
+                 padx=10, pady=3).pack(side=tk.LEFT, padx=(0, 5))
+        
+        tk.Button(ip_frame, text="Get Local IP", 
+                 command=self.get_local_ip,
+                 bg="#9b59b6", fg="white", font=('Arial', 9),
+                 padx=10, pady=3).pack(side=tk.LEFT, padx=5)
+        
+        tk.Button(ip_frame, text="Enter Remote IP", 
+                 command=self.enter_remote_ip,
+                 bg="#e67e22", fg="white", font=('Arial', 9),
+                 padx=10, pady=3).pack(side=tk.LEFT, padx=5)
         
         # Status frame
         status_frame = tk.Frame(main_frame, bg="#2c3e50")
-        status_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
+        status_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(20, 0))
         
         self.status_label = tk.Label(
             status_frame,
@@ -208,12 +154,77 @@ class GameLauncher:
         )
         self.status_label.pack()
     
+    def create_game_card(self, parent, side, icon, title, description, button_text, button_color, command):
+        """Create a game card widget."""
+        # Main card frame
+        card_frame = tk.Frame(parent, bg="#34495e", relief=tk.RAISED, bd=3)
+        card_frame.pack(side=tk.LEFT if side == "left" else tk.RIGHT, 
+                       fill=tk.BOTH, expand=True, padx=10 if side == "left" else (10, 0))
+        
+        # Icon
+        icon_label = tk.Label(card_frame, text=icon, bg="#34495e", fg="white", 
+                             font=('Arial', 20 if "\n" not in icon else 14))
+        icon_label.pack(pady=15)
+        
+        # Title
+        title_label = tk.Label(card_frame, text=title, bg="#34495e", fg="white", 
+                              font=('Arial', 14, 'bold'))
+        title_label.pack(pady=(0, 10))
+        
+        # Description
+        desc_label = tk.Label(card_frame, text=description, bg="#34495e", fg="#bdc3c7", 
+                             font=('Arial', 10), justify=tk.CENTER)
+        desc_label.pack(pady=(0, 15))
+        
+        # Play button
+        play_button = tk.Button(card_frame, text=button_text, command=command,
+                               bg=button_color, fg="white", font=('Arial', 11, 'bold'),
+                               padx=20, pady=10, cursor="hand2")
+        play_button.pack(pady=(0, 20))
+    
+    def set_server_url(self, url):
+        """Set server URL in entry field."""
+        self.server_entry.delete(0, tk.END)
+        self.server_entry.insert(0, url)
+        self.update_server_url()
+    
+    def get_local_ip(self):
+        """Get and set local IP address."""
+        try:
+            # Connect to a remote address to determine local IP
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+            
+            self.set_server_url(f"http://{local_ip}:3000")
+            self.status_label.config(text=f"Local IP found: {local_ip}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not determine local IP: {str(e)}")
+            self.status_label.config(text="Error getting local IP")
+    
+    def enter_remote_ip(self):
+        """Prompt user to enter a remote IP address."""
+        ip = simpledialog.askstring("Remote IP", 
+                                    "Enter the server IP address:",
+                                    parent=self.root)
+        if ip:
+            # Validate IP format (basic)
+            try:
+                parts = ip.split('.')
+                if len(parts) == 4 and all(0 <= int(part) <= 255 for part in parts):
+                    self.set_server_url(f"http://{ip}:3000")
+                else:
+                    messagebox.showerror("Error", "Invalid IP address format")
+            except ValueError:
+                messagebox.showerror("Error", "Invalid IP address format")
+    
     def update_server_url(self):
         """Update the server URL from entry field."""
         new_url = self.server_entry.get().strip()
         if new_url:
             self.server_url = new_url
-            self.status_label.config(text=f"Server URL updated: {new_url}")
+            self.status_label.config(text=f"Server URL: {new_url}")
         else:
             messagebox.showerror("Error", "Please enter a valid server URL")
     
@@ -224,37 +235,23 @@ class GameLauncher:
             self.root.update()
             
             # Check if chess_client.py exists
-            chess_script = Path("chess_client.py")
-            if not chess_script.exists():
-                # Try relative paths
-                possible_paths = [
-                    Path("python/chess_client.py"),
-                    Path("../python/chess_client.py"),
-                    Path("./python/chess_client.py")
-                ]
-                
-                chess_script = None
-                for path in possible_paths:
-                    if path.exists():
-                        chess_script = path
-                        break
-                
-                if not chess_script:
-                    messagebox.showerror(
-                        "Error", 
-                        "chess_client.py not found!\n\nPlease make sure the chess client script is in the same directory."
-                    )
-                    self.status_label.config(text="Error: Chess client not found")
-                    return
+            chess_script = self.find_script("chess_client.py")
+            if not chess_script:
+                messagebox.showerror(
+                    "Error", 
+                    "chess_client.py not found!\n\nPlease make sure the chess client script is available."
+                )
+                self.status_label.config(text="Error: Chess client not found")
+                return
             
-            # Launch chess client
+            # Launch chess client with server URL
             subprocess.Popen([
                 sys.executable, 
                 str(chess_script), 
                 self.server_url
             ])
             
-            self.status_label.config(text="Chess client launched successfully!")
+            self.status_label.config(text=f"Chess client launched! Server: {self.server_url}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to launch chess client:\n{str(e)}")
@@ -267,81 +264,47 @@ class GameLauncher:
             self.root.update()
             
             # Check if game_client.py exists
-            ttt_script = Path("game_client.py")
-            if not ttt_script.exists():
-                # Try relative paths
-                possible_paths = [
-                    Path("python/game_client.py"),
-                    Path("../python/game_client.py"),
-                    Path("./python/game_client.py")
-                ]
-                
-                ttt_script = None
-                for path in possible_paths:
-                    if path.exists():
-                        ttt_script = path
-                        break
-                
-                if not ttt_script:
-                    messagebox.showerror(
-                        "Error", 
-                        "game_client.py not found!\n\nPlease make sure the tic-tac-toe client script is in the same directory."
-                    )
-                    self.status_label.config(text="Error: Tic-Tac-Toe client not found")
-                    return
+            ttt_script = self.find_script("game_client.py")
+            if not ttt_script:
+                messagebox.showerror(
+                    "Error", 
+                    "game_client.py not found!\n\nPlease make sure the tic-tac-toe client script is available."
+                )
+                self.status_label.config(text="Error: Tic-Tac-Toe client not found")
+                return
             
-            # Launch tic-tac-toe client
+            # Launch tic-tac-toe client with server URL
             subprocess.Popen([
                 sys.executable, 
                 str(ttt_script), 
                 self.server_url
             ])
             
-            self.status_label.config(text="Tic-Tac-Toe client launched successfully!")
+            self.status_label.config(text=f"Tic-Tac-Toe client launched! Server: {self.server_url}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to launch tic-tac-toe client:\n{str(e)}")
             self.status_label.config(text="Error launching tic-tac-toe client")
     
+    def find_script(self, script_name):
+        """Find script in various possible locations."""
+        possible_paths = [
+            Path(script_name),  # Current directory
+            Path("python") / script_name,  # python subdirectory
+            Path("..") / script_name,  # Parent directory
+            Path("..") / "python" / script_name,  # Parent/python
+            Path(".") / "python" / script_name,  # ./python
+        ]
+        
+        for path in possible_paths:
+            if path.exists():
+                return path
+        
+        return None
+    
     def run(self):
         """Start the launcher GUI."""
         self.root.mainloop()
-
-
-class ServerManager:
-    """Simple server management utilities."""
-    
-    @staticmethod
-    def check_server_status(url):
-        """Check if the server is running."""
-        try:
-            import urllib.request
-            import urllib.error
-            
-            req = urllib.request.Request(url, method='HEAD')
-            urllib.request.urlopen(req, timeout=5)
-            return True
-        except (urllib.error.URLError, urllib.error.HTTPError):
-            return False
-    
-    @staticmethod
-    def start_local_server():
-        """Start the local Node.js server."""
-        try:
-            # Check if we're in the right directory
-            if not Path("package.json").exists():
-                return False, "package.json not found. Please run from the project root directory."
-            
-            # Try to start the server
-            process = subprocess.Popen([
-                "npm", "start"
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            
-            return True, "Server started successfully!"
-        except FileNotFoundError:
-            return False, "npm not found. Please install Node.js and npm."
-        except Exception as e:
-            return False, f"Failed to start server: {str(e)}"
 
 
 def main():
@@ -352,6 +315,7 @@ def main():
     try:
         import tkinter
         import subprocess
+        import socket
     except ImportError as e:
         print(f"❌ Missing dependency: {e}")
         print("Please install the required dependencies.")
