@@ -66,84 +66,161 @@ class ChessBoard(tk.Frame):
         self.create_board()
     
     def create_board(self):
-        """Create the chess board GUI with PERFECT ALIGNMENT."""
-        # Board container - centré et plus grand
+        """Create the chess board GUI"""
+        # Board container - TRÈS GRANDE TAILLE
         board_container = tk.Frame(self, bg="#2c3e50")
-        board_container.pack(expand=True, fill=tk.BOTH)
+        board_container.pack(expand=True, fill=tk.BOTH, padx=60, pady=60)
         
-        # Cases de même largeur pour colonnes
-        BUTTON_WIDTH = 6  # Largeur fixe pour uniformité
+        # Calculer une taille TRÈS GRANDE
+        def calculate_very_large_size():
+            self.update_idletasks()
+            
+            # Obtenir les dimensions disponibles
+            container_width = board_container.winfo_width() or 1200
+            container_height = board_container.winfo_height() or 900
+            
+            # Calculer une taille TRÈS GRANDE (95% de l'espace disponible)
+            available_size = min(container_width * 0.95, container_height * 0.95)
+            
+            # Taille TRÈS GRANDE - limites augmentées
+            min_size = 800   # Augmenté de 600 à 800
+            max_size = 1200  # Augmenté de 1000 à 1200
+            board_size = max(min_size, min(max_size, available_size))
+            
+            # Calculer les dimensions TRÈS GRANDES
+            button_size = max(80, int(board_size / 10))  # BEAUCOUP plus grand
+            font_size_large = max(24, int(button_size / 2.5))  # TRÈS grande police
+            font_size_small = max(16, int(button_size / 4))    # TRÈS grande police
+            
+            return button_size, font_size_large, font_size_small
         
-        # Top column labels - MÊME LARGEUR QUE LES BOUTONS
+        # Calculer les tailles TRÈS GRANDES
+        button_size, font_large, font_small = calculate_very_large_size()
+        
+        # Configuration EXACTE pour l'alignement parfait
+        BUTTON_PIXEL_WIDTH = button_size  # Largeur en pixels
+        ROW_LABEL_PIXEL_WIDTH = 50  # Plus large pour les labels
+        PADDING_BETWEEN = 2  # Espacement uniforme
+        
+        # Style pour les labels de coordonnées
+        label_style = {
+            'bg': "#2c3e50",
+            'fg': "#ecf0f1", 
+            'font': ('Arial', font_small, 'bold'),
+            'width': 0,  # Pas de largeur en caractères
+            'anchor': 'center'
+        }
+        
+        # Top column labels - ALIGNEMENT PIXEL PARFAIT
         top_col_frame = tk.Frame(board_container, bg="#2c3e50")
-        top_col_frame.pack(pady=(20, 5))
+        top_col_frame.pack(pady=(30, 8))
         
-        # Label vide à gauche (même largeur que labels de rangée)
-        tk.Label(top_col_frame, text="  ", bg="#2c3e50", fg="white", 
-                font=('Arial', 12), width=3).pack(side=tk.LEFT)
+        # Espacement gauche EXACT
+        left_spacer = tk.Frame(top_col_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=1)
+        left_spacer.pack(side=tk.LEFT)
+        left_spacer.pack_propagate(False)
         
-        # Labels colonnes avec MÊME LARGEUR que les boutons
+        # Labels des colonnes a-h avec LARGEUR EXACTEMENT IDENTIQUE aux boutons
         for col in "abcdefgh":
-            tk.Label(top_col_frame, text=col, bg="#2c3e50", fg="white", 
-                    font=('Arial', 12, 'bold'), width=BUTTON_WIDTH).pack(side=tk.LEFT)
+            label_frame = tk.Frame(top_col_frame, bg="#2c3e50", width=BUTTON_PIXEL_WIDTH, height=35)
+            label_frame.pack(side=tk.LEFT, padx=PADDING_BETWEEN)
+            label_frame.pack_propagate(False)
+            
+            label = tk.Label(label_frame, text=col, **label_style)
+            label.pack(expand=True, fill=tk.BOTH)
         
-        # Label vide à droite
-        tk.Label(top_col_frame, text="  ", bg="#2c3e50", fg="white", 
-                font=('Arial', 12), width=3).pack(side=tk.LEFT)
+        # Espacement droit EXACT
+        right_spacer = tk.Frame(top_col_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=1)
+        right_spacer.pack(side=tk.LEFT)
+        right_spacer.pack_propagate(False)
         
-        # Main board frame
+        # Frame principal pour l'échiquier
         main_board_frame = tk.Frame(board_container, bg="#2c3e50")
         main_board_frame.pack()
         
         self.buttons = []
         for row in range(8):
             row_frame = tk.Frame(main_board_frame, bg="#2c3e50")
-            row_frame.pack()
+            row_frame.pack(pady=PADDING_BETWEEN)
             
-            # Left row label
-            tk.Label(row_frame, text=str(8-row), bg="#2c3e50", fg="white",
-                    font=('Arial', 12, 'bold'), width=3).pack(side=tk.LEFT)
+            # Label de rangée gauche EXACTE
+            left_label_frame = tk.Frame(row_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=BUTTON_PIXEL_WIDTH)
+            left_label_frame.pack(side=tk.LEFT)
+            left_label_frame.pack_propagate(False)
+            
+            left_label = tk.Label(left_label_frame, text=str(8-row), **label_style)
+            left_label.pack(expand=True, fill=tk.BOTH)
             
             button_row = []
             for col in range(8):
+                # Couleur alternée des cases
                 color = self.light_square if (row + col) % 2 == 0 else self.dark_square
-                # LARGEUR FIXE pour alignement parfait
+                
+                # Bouton avec taille EXACTE en pixels
+                button_frame = tk.Frame(row_frame, width=BUTTON_PIXEL_WIDTH, height=BUTTON_PIXEL_WIDTH)
+                button_frame.pack(side=tk.LEFT, padx=PADDING_BETWEEN)
+                button_frame.pack_propagate(False)
+                
                 button = tk.Button(
-                    row_frame,
+                    button_frame,
                     text="",
-                    font=('Arial', 22),
-                    width=BUTTON_WIDTH,  # LARGEUR FIXE
-                    height=2,
+                    font=('Arial', font_large, 'bold'),
                     bg=color,
                     relief=tk.FLAT,
                     bd=2,
+                    activebackground=color,
                     command=lambda r=row, c=col: self.on_square_click(r, c)
                 )
-                button.pack(side=tk.LEFT, padx=1, pady=1)  # Espacement réduit
+                button.pack(expand=True, fill=tk.BOTH)
                 button_row.append(button)
             
-            # Right row label
-            tk.Label(row_frame, text=str(8-row), bg="#2c3e50", fg="white",
-                    font=('Arial', 12, 'bold'), width=3).pack(side=tk.LEFT)
+            # Label de rangée droit EXACTE
+            right_label_frame = tk.Frame(row_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=BUTTON_PIXEL_WIDTH)
+            right_label_frame.pack(side=tk.LEFT)
+            right_label_frame.pack_propagate(False)
+            
+            right_label = tk.Label(right_label_frame, text=str(8-row), **label_style)
+            right_label.pack(expand=True, fill=tk.BOTH)
             
             self.buttons.append(button_row)
         
-        # Bottom column labels - MÊME CONFIGURATION
+        # Bottom column labels - CONFIGURATION EXACTEMENT IDENTIQUE
         bottom_col_frame = tk.Frame(board_container, bg="#2c3e50")
-        bottom_col_frame.pack(pady=(5, 20))
+        bottom_col_frame.pack(pady=(8, 30))
         
-        tk.Label(bottom_col_frame, text="  ", bg="#2c3e50", fg="white", 
-                font=('Arial', 12), width=3).pack(side=tk.LEFT)
+        # Espacement gauche EXACT
+        left_spacer_bottom = tk.Frame(bottom_col_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=1)
+        left_spacer_bottom.pack(side=tk.LEFT)
+        left_spacer_bottom.pack_propagate(False)
         
+        # Labels colonnes avec LARGEUR EXACTEMENT IDENTIQUE
         for col in "abcdefgh":
-            tk.Label(bottom_col_frame, text=col, bg="#2c3e50", fg="white",
-                    font=('Arial', 12, 'bold'), width=BUTTON_WIDTH).pack(side=tk.LEFT)
+            label_frame_bottom = tk.Frame(bottom_col_frame, bg="#2c3e50", width=BUTTON_PIXEL_WIDTH, height=35)
+            label_frame_bottom.pack(side=tk.LEFT, padx=PADDING_BETWEEN)
+            label_frame_bottom.pack_propagate(False)
+            
+            label_bottom = tk.Label(label_frame_bottom, text=col, **label_style)
+            label_bottom.pack(expand=True, fill=tk.BOTH)
         
-        tk.Label(bottom_col_frame, text="  ", bg="#2c3e50", fg="white", 
-                font=('Arial', 12), width=3).pack(side=tk.LEFT)
+        # Espacement droit EXACT
+        right_spacer_bottom = tk.Frame(bottom_col_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=1)
+        right_spacer_bottom.pack(side=tk.LEFT)
+        right_spacer_bottom.pack_propagate(False)
         
-        # Initialize board with starting position
+        # Stocker les dimensions
+        self.button_size = button_size
+        self.font_large = font_large
+        
+        # Initialiser l'échiquier
         self.setup_initial_position()
+        
+        print(f"DEBUG: Board created with button size: {button_size}px, font: {font_large}")  # Debug
+
+    def on_board_resize(self, event=None):
+        """Handle board resize to maintain proportions."""
+        # Cette méthode peut être appelée lors du redimensionnement
+        # Pour l'instant, on ne fait rien, mais on pourrait recalculer les tailles
+        pass
     
     def setup_initial_position(self):
         """Set up the initial chess position for display."""
@@ -188,102 +265,114 @@ class ChessBoard(tk.Frame):
             )
     
     def on_square_click(self, row, col):
-        """Handle square click events - FIXED BLOCKING VERSION."""
-        print(f"🎯 CLICK DEBUG: Square clicked at {row},{col}")
-        print(f"🎯 CLICK DEBUG: is_my_turn = {self.is_my_turn}")
-        print(f"🎯 CLICK DEBUG: current_match = {self.current_match}")
-        print(f"🎯 CLICK DEBUG: player_color = {self.player_color}")
+        """Handle square click events - VERSION ANTI-BUG."""
+        print(f"CLICK DEBUG: Square clicked at {row},{col}")
+        print(f"CLICK DEBUG: is_my_turn = {self.is_my_turn}")
+        print(f"CLICK DEBUG: current_match = {self.current_match}")
+        print(f"CLICK DEBUG: player_color = {self.player_color}")
         
-        if not self.is_my_turn or not self.current_match:
-            print(f"🚫 CLICK IGNORED - My turn: {self.is_my_turn}, Match: {self.current_match}")
-            return
-        
-        if not self.current_state:
-            print(f"🚫 CLICK IGNORED - No current state")
+        # Vérifications de base
+        if not self.is_my_turn:
+            print(f"CLICK IGNORED - Not my turn")
             return
             
-        print(f"🎯 CLICK DEBUG: current_state exists")
+        if not self.current_match:
+            print(f"CLICK IGNORED - No active match")
+            return
+            
+        if not self.current_state:
+            print(f"CLICK IGNORED - No current state")
+            return
+        
+        print(f"CLICK DEBUG: All checks passed")
+        
+        # DEBUG : Afficher l'état du plateau
+        piece_at_square = self.current_state["board"][row][col]
+        print(f"CLICK DEBUG: Piece at {row},{col} = {piece_at_square}")
         
         if self.selected_square is None:
-            # Select a piece
-            print(f"🎯 CLICK DEBUG: Trying to select piece at {row},{col}")
+            # Mode sélection
+            print(f"CLICK DEBUG: Trying to select piece at {row},{col}")
             
-            if self.current_state["board"][row][col]:
-                piece = self.current_state["board"][row][col]
-                print(f"🎯 CLICK DEBUG: Found piece: {piece}")
+            if piece_at_square and piece_at_square["color"] == self.player_color:
+                self.selected_square = (row, col)
+                self.highlight_legal_moves(row, col)
+                print(f"SELECTED piece at {row},{col}: {piece_at_square}")
                 
-                if piece["color"] == self.player_color:
-                    self.selected_square = (row, col)
-                    self.highlight_legal_moves(row, col)
-                    print(f"✅ SELECTED piece at {row},{col}: {piece}")
-                    
-                    # Update right panel status
-                    if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
-                        self.game_client.right_panel.update_status(f"Selected {piece['type']} at {chr(97+col)}{8-row}")
-                else:
-                    print(f"🚫 WRONG COLOR: Piece color {piece['color']} != player color {self.player_color}")
+                if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
+                    self.game_client.right_panel.update_status(f"Selected {piece_at_square['type']} at {chr(97+col)}{8-row}")
             else:
-                print(f"🚫 NO PIECE at {row},{col}")
+                if piece_at_square:
+                    print(f"Cannot select: piece color {piece_at_square['color']} != my color {self.player_color}")
+                else:
+                    print(f"Cannot select: no piece at {row},{col}")
+        
         else:
-            # Make a move
+            # Mode mouvement
             from_row, from_col = self.selected_square
-            print(f"🎯 CLICK DEBUG: Attempting move from {from_row},{from_col} to {row},{col}")
+            print(f"CLICK DEBUG: Attempting move from {from_row},{from_col} to {row},{col}")
             
             if (row, col) == self.selected_square:
-                # Deselect
+                # Désélectionner
                 self.selected_square = None
                 self.legal_moves = []
                 self.update_board_display()
-                print("🔄 DESELECTED piece")
+                print("DESELECTED piece")
                 
                 if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
                     self.game_client.right_panel.update_status("Piece deselected")
+            
             else:
-                # Ne pas désactiver le tour immédiatement
-                # Attempt move
+                # Vérifier que la pièce de départ existe toujours
+                from_piece = self.current_state["board"][from_row][from_col]
+                if not from_piece or from_piece["color"] != self.player_color:
+                    print(f"ERROR: Selected piece no longer exists or wrong color!")
+                    self.selected_square = None
+                    self.legal_moves = []
+                    self.update_board_display()
+                    return
+                
+                # Tenter un mouvement
                 move = {
                     "from": [from_row, from_col],
                     "to": [row, col]
                 }
                 
-                print(f"🚀 ATTEMPTING MOVE: {move}")
+                print(f"ATTEMPTING MOVE: {move}")
                 
-                # Check for pawn promotion
-                piece = self.current_state["board"][from_row][from_col]
-                if (piece["type"] == "pawn" and 
-                    ((piece["color"] == 1 and row == 0) or (piece["color"] == 2 and row == 7))):
+                # Vérifier la promotion des pions
+                if (from_piece["type"] == "pawn" and 
+                    ((from_piece["color"] == 1 and row == 0) or (from_piece["color"] == 2 and row == 7))):
                     promotion = self.get_promotion_choice()
                     if promotion:
                         move["promotion"] = promotion
-                        print(f"🏆 PROMOTION: {promotion}")
                 
-                print(f"🌐 SENDING MOVE to server...")
-                
-                # Update status immediately
-                if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
-                    self.game_client.right_panel.update_status("Sending move...")
-                
-                # CLEAR SELECTION BEFORE SENDING
+                # NETTOYER la sélection AVANT d'envoyer
                 self.selected_square = None
                 self.legal_moves = []
                 self.update_board_display()
                 
+                # Marquer temporairement comme "pas mon tour" pour éviter les double-clics
+                original_turn_state = self.is_my_turn
+                self.is_my_turn = False
+                
+                if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
+                    self.game_client.right_panel.update_status("Sending move...")
+                
                 try:
+                    # Envoyer le mouvement
                     asyncio.run_coroutine_threadsafe(
                         self.game_client.make_move(self.current_match, move),
                         self.game_client.loop
                     )
-                    print(f"✅ MOVE SENT successfully")
-                    
-                    # NE PAS DÉSACTIVER LE TOUR ICI - Attendre la réponse du serveur
+                    print(f"MOVE SENT successfully")
                     
                 except Exception as e:
-                    print(f"❌ ERROR SENDING MOVE: {e}")
+                    print(f"ERROR SENDING MOVE: {e}")
+                    # Restaurer l'état en cas d'erreur
+                    self.is_my_turn = original_turn_state
                     if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
                         self.game_client.right_panel.update_status(f"Error: {e}")
-                    
-                    # Re-enable turn on error
-                    self.set_turn(True)
     
     def get_promotion_choice(self):
         """Get user's choice for pawn promotion."""
@@ -449,26 +538,32 @@ class ChessBoard(tk.Frame):
 
 
 class RightPanel(tk.Frame):
-    """Right panel with game controls and information."""
+    """Right panel with game controls and information - VERSION PROPORTIONNELLE."""
     
     def __init__(self, master, game_client):
-        super().__init__(master, bg="#34495e", width=350)
+        # Calculer une largeur proportionnelle à la taille de l'écran
+        screen_width = master.winfo_screenwidth()
+        panel_width = max(300, min(400, int(screen_width * 0.25)))  # 25% de l'écran mais entre 300-400px
+        
+        super().__init__(master, bg="#34495e", width=panel_width)
         self.game_client = game_client
         self.pack_propagate(False)  # Maintain fixed width
+        
+        print(f"DEBUG: Right panel width: {panel_width}px for screen width: {screen_width}px")
         
         self.create_panels()
     
     def create_panels(self):
-        """Create all panels in the right sidebar."""
-        # Title
+        """Create all panels in the right sidebar - VERSION PLUS GRANDE."""
+        # Title avec police plus grande
         title_label = tk.Label(self, text="♔ Chess Control Panel ♛", 
-                              bg="#34495e", fg="white", font=('Arial', 16, 'bold'))
-        title_label.pack(pady=(20, 10), padx=20)
+                              bg="#34495e", fg="white", font=('Arial', 18, 'bold'))
+        title_label.pack(pady=(25, 15), padx=25)
         
         # Game Status Panel
         self.create_status_panel()
         
-        # Connection Panel
+        # Connection Panel  
         self.create_connection_panel()
         
         # Game Controls Panel
@@ -482,99 +577,99 @@ class RightPanel(tk.Frame):
         spacer.pack(side=tk.BOTTOM, fill=tk.X)
     
     def create_status_panel(self):
-        """Create the game status panel."""
+        """Create the game status panel - VERSION PLUS GRANDE."""
         status_frame = tk.LabelFrame(self, text="Game Status", 
-                                   bg="#2c3e50", fg="white", font=('Arial', 12, 'bold'),
+                                   bg="#2c3e50", fg="white", font=('Arial', 14, 'bold'),
                                    relief=tk.RAISED, bd=2)
-        status_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+        status_frame.pack(fill=tk.X, padx=25, pady=(0, 20))
         
         self.status_label = tk.Label(status_frame, text="Waiting for match...", 
-                                   bg="#2c3e50", fg="white", font=('Arial', 11),
-                                   wraplength=300)
-        self.status_label.pack(pady=10, padx=10)
+                                   bg="#2c3e50", fg="white", font=('Arial', 12),
+                                   wraplength=350, justify=tk.LEFT)
+        self.status_label.pack(pady=15, padx=15)
         
         self.turn_label = tk.Label(status_frame, text="", bg="#2c3e50", fg="white",
-                                 font=('Arial', 12, 'bold'))
-        self.turn_label.pack(pady=(0, 10), padx=10)
+                                 font=('Arial', 14, 'bold'))
+        self.turn_label.pack(pady=(0, 15), padx=15)
     
     def create_connection_panel(self):
-        """Create the connection controls panel."""
+        """Create the connection controls panel - VERSION PLUS GRANDE."""
         conn_frame = tk.LabelFrame(self, text="Connection", 
-                                 bg="#2c3e50", fg="white", font=('Arial', 12, 'bold'),
+                                 bg="#2c3e50", fg="white", font=('Arial', 14, 'bold'),
                                  relief=tk.RAISED, bd=2)
-        conn_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+        conn_frame.pack(fill=tk.X, padx=25, pady=(0, 20))
         
-        # Connect button
+        # Connect button - PLUS GRAND
         self.connect_button = tk.Button(
             conn_frame, text="Connect to Server",
             command=lambda: asyncio.run_coroutine_threadsafe(
                 self.game_client.connect_and_register(), self.game_client.loop),
-            bg="#27ae60", fg="white", font=('Arial', 11, 'bold'),
-            padx=20, pady=8
+            bg="#27ae60", fg="white", font=('Arial', 12, 'bold'),
+            padx=25, pady=12, height=2
         )
-        self.connect_button.pack(fill=tk.X, padx=15, pady=10)
+        self.connect_button.pack(fill=tk.X, padx=20, pady=15)
         
-        # Queue button
+        # Queue button - PLUS GRAND
         self.queue_button = tk.Button(
             conn_frame, text="Join Chess Queue",
             command=lambda: asyncio.run_coroutine_threadsafe(
                 self.game_client.join_queue(), self.game_client.loop),
-            bg="#3498db", fg="white", font=('Arial', 11, 'bold'),
-            padx=20, pady=8
+            bg="#3498db", fg="white", font=('Arial', 12, 'bold'),
+            padx=25, pady=12, height=2
         )
-        self.queue_button.pack(fill=tk.X, padx=15, pady=(0, 10))
+        self.queue_button.pack(fill=tk.X, padx=20, pady=(0, 15))
         
-        # Disconnect button
+        # Disconnect button - PLUS GRAND
         self.disconnect_button = tk.Button(
             conn_frame, text="Disconnect",
             command=lambda: asyncio.run_coroutine_threadsafe(
                 self.game_client.disconnect(), self.game_client.loop),
-            bg="#e74c3c", fg="white", font=('Arial', 11, 'bold'),
-            padx=20, pady=8
+            bg="#e74c3c", fg="white", font=('Arial', 12, 'bold'),
+            padx=25, pady=12, height=2
         )
-        self.disconnect_button.pack(fill=tk.X, padx=15, pady=(0, 10))
+        self.disconnect_button.pack(fill=tk.X, padx=20, pady=(0, 15))
     
     def create_controls_panel(self):
-        """Create the game controls panel."""
+        """Create the game controls panel - VERSION PLUS GRANDE."""
         controls_frame = tk.LabelFrame(self, text="Game Controls", 
-                                     bg="#2c3e50", fg="white", font=('Arial', 12, 'bold'),
+                                     bg="#2c3e50", fg="white", font=('Arial', 14, 'bold'),
                                      relief=tk.RAISED, bd=2)
-        controls_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+        controls_frame.pack(fill=tk.X, padx=25, pady=(0, 20))
         
-        # Toggle pieces button
+        # Toggle pieces button - PLUS GRAND
         self.unicode_button = tk.Button(
             controls_frame, text="Toggle Pieces (Unicode/ASCII)",
             command=self.toggle_pieces,
-            bg="#9b59b6", fg="white", font=('Arial', 10),
-            padx=15, pady=6
+            bg="#9b59b6", fg="white", font=('Arial', 11),
+            padx=20, pady=10, height=2
         )
-        self.unicode_button.pack(fill=tk.X, padx=15, pady=10)
+        self.unicode_button.pack(fill=tk.X, padx=20, pady=15)
         
-        # Resign button
+        # Resign button - PLUS GRAND
         self.resign_button = tk.Button(
             controls_frame, text="Resign Game",
             command=self.resign_game,
-            bg="#e67e22", fg="white", font=('Arial', 10),
-            padx=15, pady=6
+            bg="#e67e22", fg="white", font=('Arial', 11),
+            padx=20, pady=10, height=2
         )
-        self.resign_button.pack(fill=tk.X, padx=15, pady=(0, 10))
+        self.resign_button.pack(fill=tk.X, padx=20, pady=(0, 15))
     
     def create_captured_panel(self):
-        """Create the captured pieces panel."""
+        """Create the captured pieces panel - VERSION PLUS GRANDE."""
         captured_frame = tk.LabelFrame(self, text="Captured Pieces", 
-                                     bg="#2c3e50", fg="white", font=('Arial', 12, 'bold'),
+                                     bg="#2c3e50", fg="white", font=('Arial', 14, 'bold'),
                                      relief=tk.RAISED, bd=2)
-        captured_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+        captured_frame.pack(fill=tk.X, padx=25, pady=(0, 20))
         
         self.captured_white_label = tk.Label(captured_frame, text="White: ", 
-                                           bg="#2c3e50", fg="white", font=('Arial', 11),
-                                           wraplength=300, justify=tk.LEFT)
-        self.captured_white_label.pack(pady=(10, 5), padx=15, anchor=tk.W)
+                                           bg="#2c3e50", fg="white", font=('Arial', 12),
+                                           wraplength=350, justify=tk.LEFT)
+        self.captured_white_label.pack(pady=(15, 8), padx=20, anchor=tk.W)
         
         self.captured_black_label = tk.Label(captured_frame, text="Black: ",
-                                           bg="#2c3e50", fg="white", font=('Arial', 11),
-                                           wraplength=300, justify=tk.LEFT)
-        self.captured_black_label.pack(pady=(0, 10), padx=15, anchor=tk.W)
+                                           bg="#2c3e50", fg="white", font=('Arial', 12),
+                                           wraplength=350, justify=tk.LEFT)
+        self.captured_black_label.pack(pady=(0, 15), padx=20, anchor=tk.W)
     
     def toggle_pieces(self):
         """Toggle piece display style."""
@@ -685,9 +780,9 @@ class ChessGameClient:
                 'player_id': self.player_id,
                 'move': move
             })
-            print(f"✅ MOVE SENT SUCCESSFULLY")
+            print(f"MOVE SENT SUCCESSFULLY")
         except Exception as e:
-            print(f"❌ ERROR SENDING MOVE: {e}")
+            print(f"ERROR SENDING MOVE: {e}")
             # Update status in UI
             if self.root and self.right_panel:
                 self.root.after(0, lambda: self.right_panel.update_status(f"Error sending move: {e}"))
@@ -730,7 +825,7 @@ class ChessGameClient:
     
 
     async def on_match_found(self, data):
-        """Handle a successful match - VERSION ULTRA CORRIGÉE."""
+        """Handle a successful match"""
         self.current_match = data.get('match_id')
         opponent = data.get('opponent', 'Unknown')
         state = data.get('state', {})
@@ -742,28 +837,29 @@ class ChessGameClient:
         print(f"🎮 MATCH DEBUG: Opponent: {opponent}")
         print(f"🎮 MATCH DEBUG: Current player in state: {state.get('current_player', 'UNKNOWN')}")
         
-        # Determine player color (player 1 = white, player 2 = black)
-        is_player1 = your_turn  # First player starts, so if it's your turn, you're white
+        # CORRECTION IMPORTANTE : Déterminer la couleur du joueur
+        # Le premier joueur (player1) est toujours blanc (1)
+        # Le deuxième joueur (player2) est toujours noir (2)
         
         if self.root and self.game_board and self.right_panel:
-            # CORRECTIONS IMPORTANTES :
-            self.game_board.player_color = 1 if is_player1 else 2
+            # CORRECTION : Déterminer la couleur en fonction de your_turn et current_player
+            if your_turn and state.get('current_player') == 1:
+                # Si c'est mon tour et current_player = 1, je suis le joueur 1 (blanc)
+                self.game_board.player_color = 1
+            elif not your_turn and state.get('current_player') == 1:
+                # Si ce n'est pas mon tour et current_player = 1, je suis le joueur 2 (noir)
+                self.game_board.player_color = 2
+            else:
+                # Fallback basé sur l'état initial
+                self.game_board.player_color = 1 if your_turn else 2
+            
             self.game_board.current_match = self.current_match
             self.game_board.current_state = state
             
-            # FORCER LA MISE A JOUR DU TOUR - TRIPLE MISE A JOUR
-            print(f"🔧 FORCING TURN UPDATE: {your_turn}")
+            # CORRECTION : Ne forcer le tour qu'UNE SEULE FOIS
             self.game_board.is_my_turn = your_turn
-            self.game_board.set_turn(your_turn)
             
-            # MISE A JOUR IMMEDIATE DANS LE THREAD PRINCIPAL
-            def update_turn_immediately():
-                self.game_board.is_my_turn = your_turn
-                print(f"✅ TURN UPDATED IN MAIN THREAD: {self.game_board.is_my_turn}")
-            
-            self.root.after(0, update_turn_immediately)
-            
-            color_name = "White" if is_player1 else "Black"
+            color_name = "White" if self.game_board.player_color == 1 else "Black"
             
             print(f"🎮 MATCH DEBUG: Player color set to {self.game_board.player_color} ({color_name})")
             print(f"🎮 MATCH DEBUG: Turn set to {your_turn}")
@@ -779,7 +875,7 @@ class ChessGameClient:
                 self.root.after(0, lambda: self.right_panel.update_captured_pieces(state["captured_pieces"]))
 
     async def on_game_update(self, data):
-        """Handle game state updates - VERSION ANTI-BLOCKING."""
+        """Handle game state updates"""
         match_id = data.get('match_id')
         state = data.get('state', {})
         your_turn = data.get('your_turn', False)
@@ -790,23 +886,30 @@ class ChessGameClient:
         if match_id != self.current_match:
             return
         
-        print(f"🔄 GAME UPDATE DEBUG: Your turn: {your_turn}")
-        print(f"🔄 GAME UPDATE DEBUG: Current player in state: {state.get('current_player', 'UNKNOWN')}")
-        print(f"🔄 GAME UPDATE DEBUG: Game over: {game_over}")
+        print(f"GAME UPDATE DEBUG: Your turn: {your_turn}")
+        print(f"GAME UPDATE DEBUG: Current player in state: {state.get('current_player', 'UNKNOWN')}")
+        print(f"GAME UPDATE DEBUG: Game over: {game_over}")
+        print(f"GAME UPDATE DEBUG: My player_color: {getattr(self.game_board, 'player_color', 'UNKNOWN')}")
         
         if self.root and self.game_board and self.right_panel:
+            # MISE À JOUR CRITIQUE : S'assurer que l'état du jeu est cohérent
             self.game_board.current_state = state
             self.game_board.last_move = state.get('last_move')
             
-            # Mise à jour immédiate du tour
-            print(f"🔧 FORCING TURN UPDATE IN GAME_UPDATE: {your_turn}")
+            # CORRECTION IMPORTANTE : Mise à jour du tour avec vérification
+            def update_turn():
+                old_turn = self.game_board.is_my_turn
+                new_turn = your_turn and not game_over
+                self.game_board.is_my_turn = new_turn
+                
+                print(f"TURN UPDATE: {old_turn} -> {new_turn}")
+                
+                # Si c'est notre tour, s'assurer qu'on peut bien interagir
+                if new_turn:
+                    print(f"DEBUG: It's my turn! I am player color {self.game_board.player_color}")
+                    print(f"DEBUG: Current game player is {state.get('current_player')}")
             
-            def force_turn_update():
-                self.game_board.is_my_turn = your_turn and not game_over
-                self.game_board.set_turn(your_turn and not game_over)
-                print(f"✅ TURN FORCED TO: {self.game_board.is_my_turn}")
-            
-            self.root.after(0, force_turn_update)
+            self.root.after(0, update_turn)
             self.root.after(0, lambda: self.game_board.update_board_display())
             
             if state.get("captured_pieces"):
@@ -819,19 +922,41 @@ class ChessGameClient:
                     self.root.after(0, lambda: messagebox.showinfo("Game Over", result_msg))
                 elif winner == self.player_id:
                     result_msg = "Congratulations! You won!"
-                    self.root.after(0, lambda: self.right_panel.update_status("🏆 You won!"))
+                    self.root.after(0, lambda: self.right_panel.update_status("You won!"))
                     self.root.after(0, lambda: messagebox.showinfo("Game Over", result_msg))
                 else:
                     result_msg = "You lost. Better luck next time!"
-                    self.root.after(0, lambda: self.right_panel.update_status("💀 You lost!"))
+                    self.root.after(0, lambda: self.right_panel.update_status("You lost!"))
                     self.root.after(0, lambda: messagebox.showinfo("Game Over", result_msg))
             else:
                 self.root.after(0, lambda: self.right_panel.update_turn_info(your_turn, state.get('current_player', 1)))
                 
-                # Check for check status
-                if state.get("game_status") == "check":
-                    check_msg = "Check!" if your_turn else "You're in check!"
-                    self.root.after(0, lambda: messagebox.showwarning("Check", check_msg))
+                # Gestion des messages d'échec
+                game_status = state.get("game_status", "active")
+                
+                if game_status == "check" and your_turn:
+                    if not hasattr(self, '_last_check_status') or self._last_check_status != "check":
+                        self._last_check_status = "check"
+                        
+                        def show_check_info():
+                            messagebox.showinfo("Check!", 
+                                            "Your king is in check!\n\n" +
+                                            "You must move to get out of check.")
+                        
+                        self.root.after(100, show_check_info)
+                        self.root.after(0, lambda: self.right_panel.update_status("CHECK! Your king is in danger"))
+                        
+                elif game_status == "check" and not your_turn:
+                    if not hasattr(self, '_last_check_status') or self._last_check_status != "opponent_check":
+                        self._last_check_status = "opponent_check"
+                        self.root.after(0, lambda: self.right_panel.update_status("Opponent's king is in check"))
+                        
+                else:
+                    self._last_check_status = "normal"
+                    if your_turn:
+                        self.root.after(0, lambda: self.right_panel.update_status("YOUR TURN"))
+                    else:
+                        self.root.after(0, lambda: self.right_panel.update_status("Opponent's turn"))
     
     async def on_opponent_disconnected(self, data):
         """Handle opponent disconnection."""
@@ -849,7 +974,7 @@ class ChessGameClient:
     async def on_error(self, data):
         """Handle error messages from the server - VERSION AVEC DÉBLOCAGE."""
         message = data.get('message', 'Unknown error')
-        print(f"❌ SERVER ERROR: {message}")
+        print(f"SERVER ERROR: {message}")
         
         if self.root:
             # Re-enable turn if it was a move error
@@ -868,48 +993,63 @@ class ChessGameClient:
                 self.root.after(0, lambda: self.right_panel.update_status(f"Error: {message}"))
     
     def start_gui(self):
-        """Start the GUI application in fullscreen mode."""
+        """Start the GUI application"""
         self.root = tk.Tk()
         self.root.title("Chess Client - Matchmaking Server")
         self.root.configure(bg="#2c3e50")
         
-        # FORCER LE PLEIN ÉCRAN
-        self.root.state('zoomed')  # Windows
-        # self.root.attributes('-zoomed', True)  # Linux
-        # self.root.attributes('-fullscreen', True)  # Alternative pour tous OS
+        # FORCER LE PLEIN ÉCRAN AUTOMATIQUE
+        try:
+            # Essayer plusieurs méthodes selon l'OS
+            self.root.state('zoomed')  # Windows
+        except:
+            try:
+                self.root.attributes('-zoomed', True)  # Linux
+            except:
+                try:
+                    self.root.attributes('-fullscreen', True)  # Alternative
+                except:
+                    # Fallback : taille maximale manuelle
+                    self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
         
-        # Get username before going fullscreen
-        self.username = simpledialog.askstring("Username", "Enter your username:", parent=self.root)
+        # FORCER LA FENÊTRE AU PREMIER PLAN
+        self.root.lift()  # Mettre au premier plan
+        self.root.attributes('-topmost', True)  # Toujours au dessus
+        self.root.after(100, lambda: self.root.attributes('-topmost', False))  # Désactiver après 100ms
+        self.root.focus_force()  # Forcer le focus
+        
+        # Get username before setup
+        self.username = tk.simpledialog.askstring("Username", "Enter your username:", parent=self.root)
         if not self.username:
             self.username = f"ChessPlayer_{hash(os.urandom(4)) % 1000}"
         
-        # Main container for the application
+        # Main container
         main_container = tk.Frame(self.root, bg="#2c3e50")
         main_container.pack(fill=tk.BOTH, expand=True)
         
-        # Title bar at top
+        # Title bar
         title_frame = tk.Frame(main_container, bg="#2c3e50", height=60)
         title_frame.pack(fill=tk.X, side=tk.TOP)
         title_frame.pack_propagate(False)
         
         title_label = tk.Label(title_frame, text=f"♔ Chess Matchmaking - {self.username} ♛", 
-                              bg="#2c3e50", fg="white", font=('Arial', 20, 'bold'))
+                            bg="#2c3e50", fg="white", font=('Arial', 18, 'bold'))
         title_label.pack(expand=True)
         
-        # Main content area
+        # Content area with proper proportions
         content_frame = tk.Frame(main_container, bg="#2c3e50")
         content_frame.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
         
-        # Chess board on the LEFT
+        # Board frame (LEFT side) - takes most of the width
         board_frame = tk.Frame(content_frame, bg="#2c3e50")
-        board_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(20, 10))
+        board_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(10, 5))
         
         self.game_board = ChessBoard(board_frame, self)
         self.game_board.pack(expand=True, fill=tk.BOTH)
         
-        # Right panel on the RIGHT
+        # Right panel (RIGHT side) - fixed width
         self.right_panel = RightPanel(content_frame, self)
-        self.right_panel.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 20), pady=20)
+        self.right_panel.pack(side=tk.RIGHT, fill=tk.Y, padx=(5, 10), pady=10)
         
         # Start asyncio event loop
         self.loop = asyncio.new_event_loop()
@@ -924,22 +1064,64 @@ class ChessGameClient:
         # Connect automatically
         asyncio.run_coroutine_threadsafe(self.connect_and_register(), self.loop)
         
-        # Escape key to exit fullscreen
+        # Keyboard shortcuts
         self.root.bind('<Escape>', lambda e: self.root.quit())
         self.root.bind('<F11>', lambda e: self.toggle_fullscreen())
         
-        # Start Tkinter main loop
+        # ASSURER QUE LA FENÊTRE RESTE AU PREMIER PLAN AU DÉMARRAGE
+        self.root.after(200, self.ensure_foreground)
+        
+        # Start main loop
         self.root.mainloop()
         
         # Cleanup
         if self.loop and self.loop.is_running():
             asyncio.run_coroutine_threadsafe(self.disconnect(), self.loop)
             self.loop.stop()
-    
+
+    def on_window_resize(self, event=None):
+        """Handle window resize events."""
+        if event and event.widget == self.root:
+            # La fenêtre a été redimensionnée, on pourrait recalculer les tailles
+            if hasattr(self, 'game_board') and self.game_board:
+                # Planifier une mise à jour du board après un court délai
+                self.root.after(100, self.update_board_size)
+
+    def update_board_size(self):
+        """Update board size based on current window size."""
+        # Cette méthode peut être appelée pour recalculer les tailles du board
+        # Pour l'instant, le redimensionnement automatique se fait via le layout
+        pass
+
+    def reset_board_size(self):
+        """Reset board to optimal size (Ctrl+R shortcut)."""
+        if hasattr(self, 'game_board') and self.game_board:
+            # Forcer une recreation du board avec nouvelles dimensions
+            print("🔄 Resetting board size...")
+            # On pourrait implémenter une recreation complète ici si nécessaire
+
     def toggle_fullscreen(self):
-        """Toggle fullscreen mode."""
-        current_state = self.root.attributes('-fullscreen')
-        self.root.attributes('-fullscreen', not current_state)
+        """Toggle fullscreen mode (F11 shortcut)."""
+        try:
+            current_state = self.root.attributes('-fullscreen')
+            if current_state:
+                self.root.attributes('-fullscreen', False)
+                self.root.state('zoomed')  # Passer en mode fenêtré maximisé
+            else:
+                self.root.attributes('-fullscreen', True)
+        except:
+            # Fallback pour les systèmes qui ne supportent pas -fullscreen
+            if self.root.state() == 'zoomed':
+                self.root.state('normal')
+            else:
+                self.root.state('zoomed')
+
+    def ensure_foreground(self):
+        """S'assurer que la fenêtre reste au premier plan."""
+        self.root.lift()
+        self.root.focus_force()
+        # Répéter une fois de plus après 500ms pour être sûr
+        self.root.after(500, lambda: self.root.lift())
     
     async def connect_and_register(self):
         """Connect to server and register user."""

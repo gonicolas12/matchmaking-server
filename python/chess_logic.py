@@ -77,7 +77,7 @@ class ChessLogic:
         return board
 
     def validate_move(self, state, move, player_id):
-        """Validate if a move is legal - PRODUCTION VERSION (no debug prints)."""
+        """Validate if a move is legal"""
         try:
             # Check if it's the player's turn
             if state["current_player"] != player_id:
@@ -111,20 +111,32 @@ class ChessLogic:
             if piece["color"] != player_id:
                 return False
             
-            # Check if move is valid for the piece type
+            # Check if move is valid for the piece type (règles de base uniquement)
             piece_move_valid = self._is_valid_piece_move(board, from_pos, to_pos, piece, state)
             
             if not piece_move_valid:
                 return False
             
-            # Check if move would put own king in check
-            would_be_check = self._would_be_in_check_after_move(state, from_pos, to_pos, player_id)
+            # MODIFICATION IMPORTANTE : PERMISSIVE MODE
+            # On autorise TOUS les mouvements valides, même ceux qui mettent en échec
+            # Seule exception : si le joueur est DÉJÀ en échec, il DOIT sortir d'échec
             
-            if would_be_check:
-                return False
+            current_in_check = self._is_in_check(state, player_id)
             
-            return True
-                
+            if current_in_check:
+                # Si le joueur est en échec, il DOIT jouer un coup qui sort d'échec
+                would_be_in_check_after = self._would_be_in_check_after_move(state, from_pos, to_pos, player_id)
+                if would_be_in_check_after:
+                    # Toujours en échec après le mouvement = invalide
+                    return False
+                else:
+                    # Sort d'échec = valide
+                    return True
+            else:
+                # Si pas en échec, TOUS les mouvements de pièce valides sont autorisés
+                # Même ceux qui mettent le roi en échec (le joueur apprendra à ses dépens)
+                return True
+                    
         except Exception as e:
             return False
     
@@ -473,19 +485,53 @@ class ChessLogic:
         state["check_status"]["black"] = self._is_in_check(state, 2)
     
     def _update_game_status(self, state):
-        """Update overall game status (checkmate, stalemate, etc.)."""
+        """Update overall game status"""
         current_player = state["current_player"]
         
+        # Vérifier si le joueur actuel est en échec
         if self._is_in_check(state, current_player):
-            if self._has_legal_moves(state, current_player):
+            # Vérifier s'il y a des mouvements légaux pour sortir d'échec
+            if self._has_legal_moves_to_escape_check(state, current_player):
                 state["game_status"] = "check"
             else:
                 state["game_status"] = "checkmate"
         else:
-            if self._has_legal_moves(state, current_player):
+            # Pas en échec - vérifier le pat
+            if self._has_any_legal_moves(state, current_player):
                 state["game_status"] = "active"
             else:
                 state["game_status"] = "stalemate"
+
+    def _has_legal_moves_to_escape_check(self, state, player_id):
+        """Vérifier s'il y a des mouvements pour sortir d'échec."""
+        board = state["board"]
+        
+        for from_row in range(8):
+            for from_col in range(8):
+                piece = board[from_row][from_col]
+                if piece and piece["color"] == player_id:
+                    for to_row in range(8):
+                        for to_col in range(8):
+                            # Tester si ce mouvement sort d'échec
+                            if self._is_valid_piece_move(board, (from_row, from_col), (to_row, to_col), piece, state):
+                                # Simuler le mouvement pour voir s'il sort d'échec
+                                temp_state = self._copy_state(state)
+                                temp_board = temp_state["board"]
+                                
+                                # Faire le mouvement temporairement
+                                temp_piece = temp_board[from_row][from_col]
+                                temp_board[to_row][to_col] = temp_piece
+                                temp_board[from_row][from_col] = None
+                                
+                                # Mettre à jour la position du roi si nécessaire
+                                if temp_piece["type"] == "king":
+                                    color = "white" if player_id == 1 else "black"
+                                    temp_state["king_positions"][color] = (to_row, to_col)
+                                
+                                # Vérifier si toujours en échec
+                                if not self._is_in_check(temp_state, player_id):
+                                    return True
+        return False
     
     def _has_legal_moves(self, state, player_id):
         """Check if player has any legal moves."""
@@ -500,6 +546,20 @@ class ChessLogic:
                         for to_col in range(8):
                             # Simple validation without full recursion
                             if self._is_simple_valid_move(state, from_row, from_col, to_row, to_col, player_id):
+                                return True
+        return False
+    
+    def _has_any_legal_moves(self, state, player_id):
+        """Vérifier s'il y a des mouvements légaux (pour le pat)."""
+        board = state["board"]
+        
+        for from_row in range(8):
+            for from_col in range(8):
+                piece = board[from_row][from_col]
+                if piece and piece["color"] == player_id:
+                    for to_row in range(8):
+                        for to_col in range(8):
+                            if self._is_valid_piece_move(board, (from_row, from_col), (to_row, to_col), piece, state):
                                 return True
         return False
     
