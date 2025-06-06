@@ -337,6 +337,9 @@ io.on('connection', (socket: Socket) => {
             const isGameOver = await gameLogic.isGameOver(newState);
             const isDraw = await gameLogic.isDraw(newState);
 
+            console.log(`SERVER DEBUG: Winner: ${winner}, Game Over: ${isGameOver}, Draw: ${isDraw}`);
+            console.log(`SERVER DEBUG: Game status: ${newState.game_status}`);
+
             // Update in-memory match
             match.gameState = newState;
             match.currentPlayer = newState.current_player;

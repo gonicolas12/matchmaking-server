@@ -103,6 +103,7 @@ class ChessLogic:
                 return False
             
             piece = board[from_row][from_col]
+            target = board[to_row][to_col]
             
             # Check if there's a piece at the starting position
             if not piece:
@@ -111,33 +112,93 @@ class ChessLogic:
             if piece["color"] != player_id:
                 return False
             
-            # Check if move is valid for the piece type (règles de base uniquement)
+            # *** NOUVELLE RÈGLE CRITIQUE: INTERDIRE LA CAPTURE DU ROI ***
+            if target and target["type"] == "king":
+                # On ne peut JAMAIS capturer un roi - c'est illégal aux échecs
+                return False
+            
+            # Check if move is valid for the piece type
             piece_move_valid = self._is_valid_piece_move(board, from_pos, to_pos, piece, state)
             
             if not piece_move_valid:
                 return False
+                        
+            # Vérifier seulement si le roi reste en sécurité après le mouvement
+            would_leave_king_in_direct_attack = self._would_leave_king_in_direct_attack(state, from_pos, to_pos, player_id)
             
-            # MODIFICATION IMPORTANTE : PERMISSIVE MODE
-            # On autorise TOUS les mouvements valides, même ceux qui mettent en échec
-            # Seule exception : si le joueur est DÉJÀ en échec, il DOIT sortir d'échec
+            if would_leave_king_in_direct_attack:
+                return False
             
-            current_in_check = self._is_in_check(state, player_id)
-            
-            if current_in_check:
-                # Si le joueur est en échec, il DOIT jouer un coup qui sort d'échec
-                would_be_in_check_after = self._would_be_in_check_after_move(state, from_pos, to_pos, player_id)
-                if would_be_in_check_after:
-                    # Toujours en échec après le mouvement = invalide
-                    return False
-                else:
-                    # Sort d'échec = valide
-                    return True
-            else:
-                # Si pas en échec, TOUS les mouvements de pièce valides sont autorisés
-                # Même ceux qui mettent le roi en échec (le joueur apprendra à ses dépens)
-                return True
+            return True
                     
         except Exception as e:
+            return False
+        
+    def _would_leave_king_in_direct_attack(self, state, from_pos, to_pos, player_id):
+        """Vérification simplifiée : le roi serait-il en attaque directe ?"""
+        try:
+            temp_state = self._copy_state(state)
+            temp_board = temp_state["board"]
+            
+            from_row, from_col = from_pos
+            to_row, to_col = to_pos
+            
+            # Faire le mouvement temporairement
+            piece = temp_board[from_row][from_col]
+            temp_board[to_row][to_col] = piece
+            temp_board[from_row][from_col] = None
+            
+            # Mettre à jour la position du roi si nécessaire
+            if piece["type"] == "king":
+                color = "white" if player_id == 1 else "black"
+                temp_state["king_positions"][color] = to_pos
+            
+            # Vérification TRÈS simple : le roi est-il attaqué ?
+            return self._is_king_under_simple_attack(temp_state, player_id)
+        except:
+            # En cas d'erreur, autoriser le mouvement
+            return False
+        
+    def _is_king_under_simple_attack(self, state, player_id):
+        """Vérification simplifiée d'attaque du roi."""
+        try:
+            color = "white" if player_id == 1 else "black"
+            king_pos = state["king_positions"][color]
+            
+            # Convert tuple to list if needed
+            if isinstance(king_pos, tuple):
+                king_pos = list(king_pos)
+            
+            opponent_id = 1 if player_id == 2 else 2
+            
+            # Vérifier seulement les pièces adjacentes et quelques cases critiques
+            board = state["board"]
+            king_row, king_col = king_pos
+            
+            # Vérifier les cases adjacentes (attaques de roi ennemi)
+            for dr in [-1, 0, 1]:
+                for dc in [-1, 0, 1]:
+                    if dr == 0 and dc == 0:
+                        continue
+                    r, c = king_row + dr, king_col + dc
+                    if 0 <= r < 8 and 0 <= c < 8:
+                        piece = board[r][c]
+                        if piece and piece["color"] == opponent_id and piece["type"] == "king":
+                            return True
+            
+            # Vérifier les attaques de pions
+            pawn_direction = 1 if player_id == 1 else -1
+            for dc in [-1, 1]:
+                r, c = king_row + pawn_direction, king_col + dc
+                if 0 <= r < 8 and 0 <= c < 8:
+                    piece = board[r][c]
+                    if piece and piece["color"] == opponent_id and piece["type"] == "pawn":
+                        return True
+            
+            # Pour simplifier, on ne vérifie que les attaques directes évidentes
+            # Cela évite les récursions infinies et les blocages
+            return False
+        except:
             return False
     
     def _is_valid_piece_move(self, board, from_pos, to_pos, piece, state):
@@ -429,26 +490,44 @@ class ChessLogic:
         return self._is_in_check(temp_state, player_id)
     
     def _is_in_check(self, state, player_id):
-        """Check if the player's king is in check."""
-        color = "white" if player_id == 1 else "black"
-        king_pos = state["king_positions"][color]
-        
-        # Convert tuple to list if needed
-        if isinstance(king_pos, tuple):
-            king_pos = list(king_pos)
-        
-        opponent_id = 1 if player_id == 2 else 2
-        
-        # Check if any opponent piece can attack the king
-        board = state["board"]
-        for row in range(8):
-            for col in range(8):
-                piece = board[row][col]
-                if piece and piece["color"] == opponent_id:
-                    if self._can_attack(board, (row, col), king_pos, piece):
-                        return True
-        
-        return False
+        """Check if the player's king is in check"""
+        try:
+            color = "white" if player_id == 1 else "black"
+            king_pos = state["king_positions"][color]
+            
+            # Convert tuple to list if needed
+            if isinstance(king_pos, tuple):
+                king_pos = list(king_pos)
+            
+            # Vérifier que la position du roi est valide
+            if not king_pos or len(king_pos) != 2:
+                return False
+            
+            king_row, king_col = king_pos
+            if not (0 <= king_row < 8 and 0 <= king_col < 8):
+                return False
+            
+            # Vérifier que le roi est bien sur le plateau
+            board = state["board"]
+            king_piece = board[king_row][king_col]
+            if not king_piece or king_piece["type"] != "king" or king_piece["color"] != player_id:
+                # Le roi n'est plus sur sa position - il a peut-être été capturé
+                # Dans ce cas, c'est que le jeu aurait dû être terminé avant
+                return True  # Considérer que c'est un état d'échec critique
+            
+            opponent_id = 1 if player_id == 2 else 2
+            
+            # Check if any opponent piece can attack the king
+            for row in range(8):
+                for col in range(8):
+                    piece = board[row][col]
+                    if piece and piece["color"] == opponent_id:
+                        if self._can_attack(board, (row, col), king_pos, piece):
+                            return True
+            
+            return False
+        except:
+            return True  # En cas d'erreur, considérer qu'il y a échec pour être sûr
     
     def _can_attack(self, board, from_pos, to_pos, piece):
         """Check if a piece can attack a target position."""
@@ -488,22 +567,40 @@ class ChessLogic:
         """Update overall game status"""
         current_player = state["current_player"]
         
+        import sys
+        sys.stderr.write(f"CHECKMATE DEBUG: Checking status for player {current_player}\n")
+        
         # Vérifier si le joueur actuel est en échec
-        if self._is_in_check(state, current_player):
-            # Vérifier s'il y a des mouvements légaux pour sortir d'échec
-            if self._has_legal_moves_to_escape_check(state, current_player):
+        is_in_check = self._is_in_check(state, current_player)
+        sys.stderr.write(f"CHECKMATE DEBUG: Player {current_player} in check: {is_in_check}\n")
+        
+        if is_in_check:
+            # En échec - vérifier s'il y a des mouvements légaux pour sortir d'échec
+            has_legal_moves = self._has_legal_moves_to_escape_check(state, current_player)
+            sys.stderr.write(f"CHECKMATE DEBUG: Has legal moves to escape: {has_legal_moves}\n")
+            
+            if has_legal_moves:
                 state["game_status"] = "check"
+                sys.stderr.write(f"CHECKMATE DEBUG: Status set to CHECK\n")
             else:
                 state["game_status"] = "checkmate"
+                sys.stderr.write(f"CHECKMATE DEBUG: Status set to CHECKMATE!\n")
         else:
             # Pas en échec - vérifier le pat
-            if self._has_any_legal_moves(state, current_player):
+            has_moves = self._has_any_legal_moves(state, current_player)
+            sys.stderr.write(f"CHECKMATE DEBUG: Has any legal moves: {has_moves}\n")
+            
+            if has_moves:
                 state["game_status"] = "active"
+                sys.stderr.write(f"CHECKMATE DEBUG: Status set to ACTIVE\n")
             else:
                 state["game_status"] = "stalemate"
+                sys.stderr.write(f"CHECKMATE DEBUG: Status set to STALEMATE\n")
+        
+        sys.stderr.write(f"CHECKMATE DEBUG: Final status: {state['game_status']}\n")
 
     def _has_legal_moves_to_escape_check(self, state, player_id):
-        """Vérifier s'il y a des mouvements pour sortir d'échec."""
+        """Vérifier s'il y a des mouvements pour sortir d'échec"""
         board = state["board"]
         
         for from_row in range(8):
@@ -512,6 +609,12 @@ class ChessLogic:
                 if piece and piece["color"] == player_id:
                     for to_row in range(8):
                         for to_col in range(8):
+                            target = board[to_row][to_col]
+                            
+                            # Ne pas tester la capture du roi (c'est illégal)
+                            if target and target["type"] == "king":
+                                continue
+                            
                             # Tester si ce mouvement sort d'échec
                             if self._is_valid_piece_move(board, (from_row, from_col), (to_row, to_col), piece, state):
                                 # Simuler le mouvement pour voir s'il sort d'échec
@@ -550,7 +653,7 @@ class ChessLogic:
         return False
     
     def _has_any_legal_moves(self, state, player_id):
-        """Vérifier s'il y a des mouvements légaux (pour le pat)."""
+        """Vérifier s'il y a des mouvements légaux (pour le pat)"""
         board = state["board"]
         
         for from_row in range(8):
@@ -559,8 +662,27 @@ class ChessLogic:
                 if piece and piece["color"] == player_id:
                     for to_row in range(8):
                         for to_col in range(8):
+                            target = board[to_row][to_col]
+                            
+                            # Ne pas tester la capture du roi (c'est illégal)
+                            if target and target["type"] == "king":
+                                continue
+                            
                             if self._is_valid_piece_move(board, (from_row, from_col), (to_row, to_col), piece, state):
-                                return True
+                                # Vérifier que ce mouvement ne met pas le roi en échec
+                                temp_state = self._copy_state(state)
+                                temp_board = temp_state["board"]
+                                
+                                temp_piece = temp_board[from_row][from_col]
+                                temp_board[to_row][to_col] = temp_piece
+                                temp_board[from_row][from_col] = None
+                                
+                                if temp_piece["type"] == "king":
+                                    color = "white" if player_id == 1 else "black"
+                                    temp_state["king_positions"][color] = (to_row, to_col)
+                                
+                                if not self._is_in_check(temp_state, player_id):
+                                    return True
         return False
     
     def _is_simple_valid_move(self, state, from_row, from_col, to_row, to_col, player_id):
