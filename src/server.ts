@@ -266,12 +266,16 @@ io.on('connection', (socket: Socket) => {
     socket.on('make_move', async (data) => {
         try {
             const { match_id, player_id, move } = data;
+            
+            console.log(`🎯 MOVE DEBUG: Player ${player_id} attempting move in match ${match_id}`);
+            console.log(`🎯 MOVE DEBUG: Move data:`, move);
 
             // Get match from memory or database
             let match = activeMatches.get(match_id);
             if (!match) {
                 const dbMatch = await db.getMatch(match_id);
                 if (!dbMatch || dbMatch.is_finished) {
+                    console.log(`❌ MOVE ERROR: Match ${match_id} not found or finished`);
                     return socket.emit('error', { message: "Match not found or already finished" });
                 }
 
@@ -289,29 +293,38 @@ io.on('connection', (socket: Socket) => {
                 activeMatches.set(match_id, match);
             }
 
-            // Determine if it's the player's turn
+            // Check if player is in the match
             const isPlayer1 = player_id === match.player1Id;
             const isPlayer2 = player_id === match.player2Id;
-
-            const isPlayerTurn = (match.gameState.current_player === 1 && isPlayer1) ||
-                (match.gameState.current_player === 2 && isPlayer2);
-
-            // Validate if it's the player's turn
-            if (!isPlayerTurn) {
-                return socket.emit('error', { message: "Not your turn" });
+            
+            if (!isPlayer1 && !isPlayer2) {
+                console.log(`❌ MOVE ERROR: Player ${player_id} not in match ${match_id}`);
+                return socket.emit('error', { message: "You are not in this match" });
             }
 
             // Map player ID to game player ID (1 or 2)
             const gamePlayerId = isPlayer1 ? 1 : 2;
+            
+            console.log(`🎯 MOVE DEBUG: Player ${player_id} -> Game Player ${gamePlayerId}`);
+            console.log(`🎯 MOVE DEBUG: Current game player: ${match.gameState.current_player}`);
+
+            // Check if it's the player's turn
+            if (match.gameState.current_player !== gamePlayerId) {
+                console.log(`❌ TURN ERROR: Not player ${gamePlayerId}'s turn (current: ${match.gameState.current_player})`);
+                return socket.emit('error', { message: "Not your turn" });
+            }
 
             // Validate move with game logic
             const isValidMove = await gameLogic.validateMove(match.gameState, move, gamePlayerId);
             if (!isValidMove) {
+                console.log(`❌ VALIDATION ERROR: Invalid move for player ${gamePlayerId}`);
                 return socket.emit('error', { message: "Invalid move" });
             }
 
             // Apply move to game state
             const newState = await gameLogic.applyMove(match.gameState, move, gamePlayerId);
+            
+            console.log(`✅ MOVE APPLIED: New current player: ${newState.current_player}`);
 
             // Record turn in database
             await db.recordTurn(match_id, player_id, move);
@@ -336,13 +349,27 @@ io.on('connection', (socket: Socket) => {
 
             activeMatches.set(match_id, match);
 
-            // Notify both players
+            // Notify players of the move
+            console.log(`📤 NOTIFYING PLAYERS: Match ${match_id}, Winner: ${winner}, Game Over: ${isGameOver}`);
             notifyMatchPlayers(match, winner, isGameOver, isDraw);
 
-            console.log(`Move made in ${match.gameType} match ${match_id} by player ${player_id}. Game over: ${isGameOver}, Winner: ${winner || (isDraw ? 'draw' : 'none')}`);
-        } catch (error) {
-            console.error("Error handling move:", error);
-            socket.emit('error', { message: "Failed to process move" });
+            console.log(`✅ MOVE COMPLETED: Match ${match_id}, Player ${player_id} -> Game Player ${gamePlayerId}`);
+
+        } catch (error: unknown) {
+            console.error("❌ CRITICAL ERROR in make_move:", error);
+            
+            // Send error message to client
+            let errorMessage = "Unknown error occurred";
+            
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            } else if (error && typeof error === 'object' && 'message' in error) {
+                errorMessage = String((error as any).message);
+            }
+            
+            socket.emit('error', { message: "Failed to process move: " + errorMessage });
         }
     });
 
@@ -513,13 +540,19 @@ function notifyMatchPlayers(match: ActiveMatch, winner: number | null, isGameOve
     const socket1 = playerSockets.get(match.player1Id);
     const socket2 = playerSockets.get(match.player2Id);
 
-    const isPlayer1Turn = match.gameState.current_player === 1 && !isGameOver;
+    // Logique de tour corrigée
+    const currentGamePlayer = match.gameState.current_player; // 1 or 2
+    const isPlayer1Turn = currentGamePlayer === 1 && !isGameOver;
+    const isPlayer2Turn = currentGamePlayer === 2 && !isGameOver;
+
+    console.log(`🔄 NOTIFY DEBUG: Current game player: ${currentGamePlayer}`);
+    console.log(`🔄 NOTIFY DEBUG: Player1 turn: ${isPlayer1Turn}, Player2 turn: ${isPlayer2Turn}`);
 
     if (socket1) {
         socket1.emit('game_update', {
             match_id: match.id,
             state: match.gameState,
-            your_turn: isPlayer1Turn,
+            your_turn: isPlayer1Turn, // Player 1 joue quand current_player = 1
             winner: winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null,
             game_over: isGameOver,
             is_draw: isDraw
@@ -530,7 +563,7 @@ function notifyMatchPlayers(match: ActiveMatch, winner: number | null, isGameOve
         socket2.emit('game_update', {
             match_id: match.id,
             state: match.gameState,
-            your_turn: !isPlayer1Turn && !isGameOver,
+            your_turn: isPlayer2Turn, // Player 2 joue quand current_player = 2
             winner: winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null,
             game_over: isGameOver,
             is_draw: isDraw

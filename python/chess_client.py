@@ -1,5 +1,5 @@
 """
-Chess Client for Matchmaking Server - FULLSCREEN VERSION
+Chess Client for Matchmaking Server - ALIGNMENT & BLOCKING FIXED
 
 This script provides a beautiful fullscreen GUI client for playing chess
 against other players through the matchmaking server.
@@ -66,19 +66,28 @@ class ChessBoard(tk.Frame):
         self.create_board()
     
     def create_board(self):
-        """Create the chess board GUI optimized for fullscreen."""
+        """Create the chess board GUI with PERFECT ALIGNMENT."""
         # Board container - centré et plus grand
         board_container = tk.Frame(self, bg="#2c3e50")
         board_container.pack(expand=True, fill=tk.BOTH)
         
-        # Top column labels
+        # Cases de même largeur pour colonnes
+        BUTTON_WIDTH = 6  # Largeur fixe pour uniformité
+        
+        # Top column labels - MÊME LARGEUR QUE LES BOUTONS
         top_col_frame = tk.Frame(board_container, bg="#2c3e50")
         top_col_frame.pack(pady=(20, 5))
+        
+        # Label vide à gauche (même largeur que labels de rangée)
         tk.Label(top_col_frame, text="  ", bg="#2c3e50", fg="white", 
                 font=('Arial', 12), width=3).pack(side=tk.LEFT)
+        
+        # Labels colonnes avec MÊME LARGEUR que les boutons
         for col in "abcdefgh":
             tk.Label(top_col_frame, text=col, bg="#2c3e50", fg="white", 
-                    font=('Arial', 12, 'bold'), width=6).pack(side=tk.LEFT)
+                    font=('Arial', 12, 'bold'), width=BUTTON_WIDTH).pack(side=tk.LEFT)
+        
+        # Label vide à droite
         tk.Label(top_col_frame, text="  ", bg="#2c3e50", fg="white", 
                 font=('Arial', 12), width=3).pack(side=tk.LEFT)
         
@@ -98,19 +107,19 @@ class ChessBoard(tk.Frame):
             button_row = []
             for col in range(8):
                 color = self.light_square if (row + col) % 2 == 0 else self.dark_square
-                # ✅ Cases optimisées pour plein écran
+                # LARGEUR FIXE pour alignement parfait
                 button = tk.Button(
                     row_frame,
                     text="",
-                    font=('Arial', 22),  # Police réduite
-                    width=5,             # Cases un peu plus petites
-                    height=2,            # Hauteur réduite
+                    font=('Arial', 22),
+                    width=BUTTON_WIDTH,  # LARGEUR FIXE
+                    height=2,
                     bg=color,
                     relief=tk.FLAT,
                     bd=2,
                     command=lambda r=row, c=col: self.on_square_click(r, c)
                 )
-                button.pack(side=tk.LEFT, padx=2, pady=2)
+                button.pack(side=tk.LEFT, padx=1, pady=1)  # Espacement réduit
                 button_row.append(button)
             
             # Right row label
@@ -119,14 +128,17 @@ class ChessBoard(tk.Frame):
             
             self.buttons.append(button_row)
         
-        # Bottom column labels
+        # Bottom column labels - MÊME CONFIGURATION
         bottom_col_frame = tk.Frame(board_container, bg="#2c3e50")
         bottom_col_frame.pack(pady=(5, 20))
+        
         tk.Label(bottom_col_frame, text="  ", bg="#2c3e50", fg="white", 
                 font=('Arial', 12), width=3).pack(side=tk.LEFT)
+        
         for col in "abcdefgh":
             tk.Label(bottom_col_frame, text=col, bg="#2c3e50", fg="white",
-                    font=('Arial', 12, 'bold'), width=6).pack(side=tk.LEFT)
+                    font=('Arial', 12, 'bold'), width=BUTTON_WIDTH).pack(side=tk.LEFT)
+        
         tk.Label(bottom_col_frame, text="  ", bg="#2c3e50", fg="white", 
                 font=('Arial', 12), width=3).pack(side=tk.LEFT)
         
@@ -176,94 +188,102 @@ class ChessBoard(tk.Frame):
             )
     
     def on_square_click(self, row, col):
-            """Handle square click events - VERSION DEBUG."""
-            print(f"🎯 CLICK DEBUG: Square clicked at {row},{col}")
-            print(f"🎯 CLICK DEBUG: is_my_turn = {self.is_my_turn}")
-            print(f"🎯 CLICK DEBUG: current_match = {self.current_match}")
-            print(f"🎯 CLICK DEBUG: player_color = {self.player_color}")
+        """Handle square click events - FIXED BLOCKING VERSION."""
+        print(f"🎯 CLICK DEBUG: Square clicked at {row},{col}")
+        print(f"🎯 CLICK DEBUG: is_my_turn = {self.is_my_turn}")
+        print(f"🎯 CLICK DEBUG: current_match = {self.current_match}")
+        print(f"🎯 CLICK DEBUG: player_color = {self.player_color}")
+        
+        if not self.is_my_turn or not self.current_match:
+            print(f"🚫 CLICK IGNORED - My turn: {self.is_my_turn}, Match: {self.current_match}")
+            return
+        
+        if not self.current_state:
+            print(f"🚫 CLICK IGNORED - No current state")
+            return
             
-            if not self.is_my_turn or not self.current_match:
-                print(f"🚫 CLICK IGNORED - My turn: {self.is_my_turn}, Match: {self.current_match}")
-                return
+        print(f"🎯 CLICK DEBUG: current_state exists")
+        
+        if self.selected_square is None:
+            # Select a piece
+            print(f"🎯 CLICK DEBUG: Trying to select piece at {row},{col}")
             
-            if not self.current_state:
-                print(f"🚫 CLICK IGNORED - No current state")
-                return
+            if self.current_state["board"][row][col]:
+                piece = self.current_state["board"][row][col]
+                print(f"🎯 CLICK DEBUG: Found piece: {piece}")
                 
-            print(f"🎯 CLICK DEBUG: current_state exists")
-            
-            if self.selected_square is None:
-                # Select a piece
-                print(f"🎯 CLICK DEBUG: Trying to select piece at {row},{col}")
-                
-                if self.current_state["board"][row][col]:
-                    piece = self.current_state["board"][row][col]
-                    print(f"🎯 CLICK DEBUG: Found piece: {piece}")
+                if piece["color"] == self.player_color:
+                    self.selected_square = (row, col)
+                    self.highlight_legal_moves(row, col)
+                    print(f"✅ SELECTED piece at {row},{col}: {piece}")
                     
-                    if piece["color"] == self.player_color:
-                        self.selected_square = (row, col)
-                        self.highlight_legal_moves(row, col)
-                        print(f"✅ SELECTED piece at {row},{col}: {piece}")
-                        
-                        # Update right panel status
-                        if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
-                            self.game_client.right_panel.update_status(f"Selected {piece['type']} at {chr(97+col)}{8-row}")
-                    else:
-                        print(f"🚫 WRONG COLOR: Piece color {piece['color']} != player color {self.player_color}")
+                    # Update right panel status
+                    if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
+                        self.game_client.right_panel.update_status(f"Selected {piece['type']} at {chr(97+col)}{8-row}")
                 else:
-                    print(f"🚫 NO PIECE at {row},{col}")
+                    print(f"🚫 WRONG COLOR: Piece color {piece['color']} != player color {self.player_color}")
             else:
-                # Make a move
-                from_row, from_col = self.selected_square
-                print(f"🎯 CLICK DEBUG: Attempting move from {from_row},{from_col} to {row},{col}")
+                print(f"🚫 NO PIECE at {row},{col}")
+        else:
+            # Make a move
+            from_row, from_col = self.selected_square
+            print(f"🎯 CLICK DEBUG: Attempting move from {from_row},{from_col} to {row},{col}")
+            
+            if (row, col) == self.selected_square:
+                # Deselect
+                self.selected_square = None
+                self.legal_moves = []
+                self.update_board_display()
+                print("🔄 DESELECTED piece")
                 
-                if (row, col) == self.selected_square:
-                    # Deselect
-                    self.selected_square = None
-                    self.legal_moves = []
-                    self.update_board_display()
-                    print("🔄 DESELECTED piece")
+                if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
+                    self.game_client.right_panel.update_status("Piece deselected")
+            else:
+                # Ne pas désactiver le tour immédiatement
+                # Attempt move
+                move = {
+                    "from": [from_row, from_col],
+                    "to": [row, col]
+                }
+                
+                print(f"🚀 ATTEMPTING MOVE: {move}")
+                
+                # Check for pawn promotion
+                piece = self.current_state["board"][from_row][from_col]
+                if (piece["type"] == "pawn" and 
+                    ((piece["color"] == 1 and row == 0) or (piece["color"] == 2 and row == 7))):
+                    promotion = self.get_promotion_choice()
+                    if promotion:
+                        move["promotion"] = promotion
+                        print(f"🏆 PROMOTION: {promotion}")
+                
+                print(f"🌐 SENDING MOVE to server...")
+                
+                # Update status immediately
+                if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
+                    self.game_client.right_panel.update_status("Sending move...")
+                
+                # CLEAR SELECTION BEFORE SENDING
+                self.selected_square = None
+                self.legal_moves = []
+                self.update_board_display()
+                
+                try:
+                    asyncio.run_coroutine_threadsafe(
+                        self.game_client.make_move(self.current_match, move),
+                        self.game_client.loop
+                    )
+                    print(f"✅ MOVE SENT successfully")
                     
+                    # NE PAS DÉSACTIVER LE TOUR ICI - Attendre la réponse du serveur
+                    
+                except Exception as e:
+                    print(f"❌ ERROR SENDING MOVE: {e}")
                     if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
-                        self.game_client.right_panel.update_status("Piece deselected")
-                else:
-                    # Attempt move
-                    move = {
-                        "from": [from_row, from_col],
-                        "to": [row, col]
-                    }
+                        self.game_client.right_panel.update_status(f"Error: {e}")
                     
-                    print(f"🚀 ATTEMPTING MOVE: {move}")
-                    
-                    # Check for pawn promotion
-                    piece = self.current_state["board"][from_row][from_col]
-                    if (piece["type"] == "pawn" and 
-                        ((piece["color"] == 1 and row == 0) or (piece["color"] == 2 and row == 7))):
-                        promotion = self.get_promotion_choice()
-                        if promotion:
-                            move["promotion"] = promotion
-                            print(f"🏆 PROMOTION: {promotion}")
-                    
-                    print(f"🌐 SENDING MOVE to server...")
-                    
-                    # Update status immediately
-                    if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
-                        self.game_client.right_panel.update_status("Sending move...")
-                    
-                    try:
-                        asyncio.run_coroutine_threadsafe(
-                            self.game_client.make_move(self.current_match, move),
-                            self.game_client.loop
-                        )
-                        print(f"✅ MOVE SENT successfully")
-                    except Exception as e:
-                        print(f"❌ ERROR SENDING MOVE: {e}")
-                        if hasattr(self.game_client, 'right_panel') and self.game_client.right_panel:
-                            self.game_client.right_panel.update_status(f"Error: {e}")
-                    
-                    self.selected_square = None
-                    self.legal_moves = []
-                    self.set_turn(False)  # Disable board until response
+                    # Re-enable turn on error
+                    self.set_turn(True)
     
     def get_promotion_choice(self):
         """Get user's choice for pawn promotion."""
@@ -710,108 +730,108 @@ class ChessGameClient:
     
 
     async def on_match_found(self, data):
-            """Handle a successful match - VERSION ULTRA CORRIGÉE."""
-            self.current_match = data.get('match_id')
-            opponent = data.get('opponent', 'Unknown')
-            state = data.get('state', {})
-            your_turn = data.get('your_turn', False)
+        """Handle a successful match - VERSION ULTRA CORRIGÉE."""
+        self.current_match = data.get('match_id')
+        opponent = data.get('opponent', 'Unknown')
+        state = data.get('state', {})
+        your_turn = data.get('your_turn', False)
+        
+        print(f"🎮 MATCH DEBUG: Chess match found!")
+        print(f"🎮 MATCH DEBUG: Match ID: {self.current_match}")
+        print(f"🎮 MATCH DEBUG: Your turn: {your_turn}")
+        print(f"🎮 MATCH DEBUG: Opponent: {opponent}")
+        print(f"🎮 MATCH DEBUG: Current player in state: {state.get('current_player', 'UNKNOWN')}")
+        
+        # Determine player color (player 1 = white, player 2 = black)
+        is_player1 = your_turn  # First player starts, so if it's your turn, you're white
+        
+        if self.root and self.game_board and self.right_panel:
+            # CORRECTIONS IMPORTANTES :
+            self.game_board.player_color = 1 if is_player1 else 2
+            self.game_board.current_match = self.current_match
+            self.game_board.current_state = state
             
-            print(f"🎮 MATCH DEBUG: Chess match found!")
-            print(f"🎮 MATCH DEBUG: Match ID: {self.current_match}")
-            print(f"🎮 MATCH DEBUG: Your turn: {your_turn}")
-            print(f"🎮 MATCH DEBUG: Opponent: {opponent}")
-            print(f"🎮 MATCH DEBUG: Current player in state: {state.get('current_player', 'UNKNOWN')}")
+            # FORCER LA MISE A JOUR DU TOUR - TRIPLE MISE A JOUR
+            print(f"🔧 FORCING TURN UPDATE: {your_turn}")
+            self.game_board.is_my_turn = your_turn
+            self.game_board.set_turn(your_turn)
             
-            # Determine player color (player 1 = white, player 2 = black)
-            is_player1 = your_turn  # First player starts, so if it's your turn, you're white
-            
-            if self.root and self.game_board and self.right_panel:
-                # ✅ CORRECTIONS IMPORTANTES :
-                self.game_board.player_color = 1 if is_player1 else 2
-                self.game_board.current_match = self.current_match
-                self.game_board.current_state = state
-                
-                # ✅ FORCER LA MISE À JOUR DU TOUR - TRIPLE MISE À JOUR
-                print(f"🔧 FORCING TURN UPDATE: {your_turn}")
+            # MISE A JOUR IMMEDIATE DANS LE THREAD PRINCIPAL
+            def update_turn_immediately():
                 self.game_board.is_my_turn = your_turn
-                self.game_board.set_turn(your_turn)
-                
-                # ✅ MISE À JOUR IMMÉDIATE DANS LE THREAD PRINCIPAL
-                def update_turn_immediately():
-                    self.game_board.is_my_turn = your_turn
-                    print(f"✅ TURN UPDATED IN MAIN THREAD: {self.game_board.is_my_turn}")
-                
-                self.root.after(0, update_turn_immediately)
-                
-                color_name = "White" if is_player1 else "Black"
-                
-                print(f"🎮 MATCH DEBUG: Player color set to {self.game_board.player_color} ({color_name})")
-                print(f"🎮 MATCH DEBUG: Turn set to {your_turn}")
-                
-                # Update display
-                self.root.after(0, lambda: self.game_board.update_board_display())
-                self.root.after(0, lambda: self.right_panel.update_turn_info(your_turn, state.get('current_player', 1)))
-                self.root.after(0, lambda: self.right_panel.update_status(
-                    f"Playing as {color_name} vs {opponent} - {'YOUR TURN' if your_turn else 'WAITING'}"
-                ))
-                
-                if state.get("captured_pieces"):
-                    self.root.after(0, lambda: self.right_panel.update_captured_pieces(state["captured_pieces"]))
+                print(f"✅ TURN UPDATED IN MAIN THREAD: {self.game_board.is_my_turn}")
+            
+            self.root.after(0, update_turn_immediately)
+            
+            color_name = "White" if is_player1 else "Black"
+            
+            print(f"🎮 MATCH DEBUG: Player color set to {self.game_board.player_color} ({color_name})")
+            print(f"🎮 MATCH DEBUG: Turn set to {your_turn}")
+            
+            # Update display
+            self.root.after(0, lambda: self.game_board.update_board_display())
+            self.root.after(0, lambda: self.right_panel.update_turn_info(your_turn, state.get('current_player', 1)))
+            self.root.after(0, lambda: self.right_panel.update_status(
+                f"Playing as {color_name} vs {opponent} - {'YOUR TURN' if your_turn else 'WAITING'}"
+            ))
+            
+            if state.get("captured_pieces"):
+                self.root.after(0, lambda: self.right_panel.update_captured_pieces(state["captured_pieces"]))
 
     async def on_game_update(self, data):
-            """Handle game state updates - VERSION ULTRA CORRIGÉE."""
-            match_id = data.get('match_id')
-            state = data.get('state', {})
-            your_turn = data.get('your_turn', False)
-            winner = data.get('winner')
-            game_over = data.get('game_over', False)
-            is_draw = data.get('is_draw', False)
+        """Handle game state updates - VERSION ANTI-BLOCKING."""
+        match_id = data.get('match_id')
+        state = data.get('state', {})
+        your_turn = data.get('your_turn', False)
+        winner = data.get('winner')
+        game_over = data.get('game_over', False)
+        is_draw = data.get('is_draw', False)
+        
+        if match_id != self.current_match:
+            return
+        
+        print(f"🔄 GAME UPDATE DEBUG: Your turn: {your_turn}")
+        print(f"🔄 GAME UPDATE DEBUG: Current player in state: {state.get('current_player', 'UNKNOWN')}")
+        print(f"🔄 GAME UPDATE DEBUG: Game over: {game_over}")
+        
+        if self.root and self.game_board and self.right_panel:
+            self.game_board.current_state = state
+            self.game_board.last_move = state.get('last_move')
             
-            if match_id != self.current_match:
-                return
+            # Mise à jour immédiate du tour
+            print(f"🔧 FORCING TURN UPDATE IN GAME_UPDATE: {your_turn}")
             
-            print(f"🔄 GAME UPDATE DEBUG: Your turn: {your_turn}")
-            print(f"🔄 GAME UPDATE DEBUG: Current player in state: {state.get('current_player', 'UNKNOWN')}")
-            print(f"🔄 GAME UPDATE DEBUG: Game over: {game_over}")
+            def force_turn_update():
+                self.game_board.is_my_turn = your_turn and not game_over
+                self.game_board.set_turn(your_turn and not game_over)
+                print(f"✅ TURN FORCED TO: {self.game_board.is_my_turn}")
             
-            if self.root and self.game_board and self.right_panel:
-                self.game_board.current_state = state
-                self.game_board.last_move = state.get('last_move')
-                
-                # ✅ FORCER LA MISE À JOUR DU TOUR À CHAQUE UPDATE
-                print(f"🔧 FORCING TURN UPDATE IN GAME_UPDATE: {your_turn}")
-                
-                def force_turn_update():
-                    self.game_board.is_my_turn = your_turn and not game_over
-                    self.game_board.set_turn(your_turn and not game_over)
-                    print(f"✅ TURN FORCED TO: {self.game_board.is_my_turn}")
-                
-                self.root.after(0, force_turn_update)
-                self.root.after(0, lambda: self.game_board.update_board_display())
-                
-                if state.get("captured_pieces"):
-                    self.root.after(0, lambda: self.right_panel.update_captured_pieces(state["captured_pieces"]))
-                
-                if game_over:
-                    if is_draw:
-                        result_msg = "Game ended in a draw!"
-                        self.root.after(0, lambda: self.right_panel.update_status("Game over - Draw!"))
-                        self.root.after(0, lambda: messagebox.showinfo("Game Over", result_msg))
-                    elif winner == self.player_id:
-                        result_msg = "Congratulations! You won!"
-                        self.root.after(0, lambda: self.right_panel.update_status("🏆 You won!"))
-                        self.root.after(0, lambda: messagebox.showinfo("Game Over", result_msg))
-                    else:
-                        result_msg = "You lost. Better luck next time!"
-                        self.root.after(0, lambda: self.right_panel.update_status("💀 You lost!"))
-                        self.root.after(0, lambda: messagebox.showinfo("Game Over", result_msg))
+            self.root.after(0, force_turn_update)
+            self.root.after(0, lambda: self.game_board.update_board_display())
+            
+            if state.get("captured_pieces"):
+                self.root.after(0, lambda: self.right_panel.update_captured_pieces(state["captured_pieces"]))
+            
+            if game_over:
+                if is_draw:
+                    result_msg = "Game ended in a draw!"
+                    self.root.after(0, lambda: self.right_panel.update_status("Game over - Draw!"))
+                    self.root.after(0, lambda: messagebox.showinfo("Game Over", result_msg))
+                elif winner == self.player_id:
+                    result_msg = "Congratulations! You won!"
+                    self.root.after(0, lambda: self.right_panel.update_status("🏆 You won!"))
+                    self.root.after(0, lambda: messagebox.showinfo("Game Over", result_msg))
                 else:
-                    self.root.after(0, lambda: self.right_panel.update_turn_info(your_turn, state.get('current_player', 1)))
-                    
-                    # Check for check status
-                    if state.get("game_status") == "check":
-                        check_msg = "Check!" if your_turn else "You're in check!"
-                        self.root.after(0, lambda: messagebox.showwarning("Check", check_msg))
+                    result_msg = "You lost. Better luck next time!"
+                    self.root.after(0, lambda: self.right_panel.update_status("💀 You lost!"))
+                    self.root.after(0, lambda: messagebox.showinfo("Game Over", result_msg))
+            else:
+                self.root.after(0, lambda: self.right_panel.update_turn_info(your_turn, state.get('current_player', 1)))
+                
+                # Check for check status
+                if state.get("game_status") == "check":
+                    check_msg = "Check!" if your_turn else "You're in check!"
+                    self.root.after(0, lambda: messagebox.showwarning("Check", check_msg))
     
     async def on_opponent_disconnected(self, data):
         """Handle opponent disconnection."""
@@ -827,7 +847,7 @@ class ChessGameClient:
             self.root.after(0, lambda: messagebox.showinfo("Game Over", "Opponent disconnected. You win!"))
     
     async def on_error(self, data):
-        """Handle error messages from the server - VERSION AVEC DEBUG."""
+        """Handle error messages from the server - VERSION AVEC DÉBLOCAGE."""
         message = data.get('message', 'Unknown error')
         print(f"❌ SERVER ERROR: {message}")
         
@@ -836,6 +856,7 @@ class ChessGameClient:
             if "move" in message.lower() and self.game_board:
                 def re_enable_turn():
                     self.game_board.is_my_turn = True
+                    self.game_board.set_turn(True)
                     print(f"🔧 RE-ENABLED TURN after error")
                 
                 self.root.after(0, re_enable_turn)
@@ -852,7 +873,7 @@ class ChessGameClient:
         self.root.title("Chess Client - Matchmaking Server")
         self.root.configure(bg="#2c3e50")
         
-        # ✅ FORCER LE PLEIN ÉCRAN
+        # FORCER LE PLEIN ÉCRAN
         self.root.state('zoomed')  # Windows
         # self.root.attributes('-zoomed', True)  # Linux
         # self.root.attributes('-fullscreen', True)  # Alternative pour tous OS
@@ -862,7 +883,7 @@ class ChessGameClient:
         if not self.username:
             self.username = f"ChessPlayer_{hash(os.urandom(4)) % 1000}"
         
-        # ✅ LAYOUT HORIZONTAL : Board à gauche, Panel à droite
+        # Main container for the application
         main_container = tk.Frame(self.root, bg="#2c3e50")
         main_container.pack(fill=tk.BOTH, expand=True)
         
@@ -879,14 +900,14 @@ class ChessGameClient:
         content_frame = tk.Frame(main_container, bg="#2c3e50")
         content_frame.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
         
-        # ✅ Chess board on the LEFT
+        # Chess board on the LEFT
         board_frame = tk.Frame(content_frame, bg="#2c3e50")
         board_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(20, 10))
         
         self.game_board = ChessBoard(board_frame, self)
         self.game_board.pack(expand=True, fill=tk.BOTH)
         
-        # ✅ Right panel on the RIGHT
+        # Right panel on the RIGHT
         self.right_panel = RightPanel(content_frame, self)
         self.right_panel.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 20), pady=20)
         
@@ -903,7 +924,7 @@ class ChessGameClient:
         # Connect automatically
         asyncio.run_coroutine_threadsafe(self.connect_and_register(), self.loop)
         
-        # ✅ Escape key to exit fullscreen
+        # Escape key to exit fullscreen
         self.root.bind('<Escape>', lambda e: self.root.quit())
         self.root.bind('<F11>', lambda e: self.toggle_fullscreen())
         
