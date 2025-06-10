@@ -280,6 +280,6 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 ---
 
-**Projet réalisé dans le cadre du Bachelor 2 Informatique - Ynov Campus Bordeaux**
+**Projet réalisé dans le cadre du Bachelor 2 Informatique - Ynov Campus Toulouse**
 
 *Développement Logiciel et Base de données - Projet de Matchmaking*
