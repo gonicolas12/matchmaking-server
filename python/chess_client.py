@@ -68,69 +68,93 @@ class ChessBoard(tk.Frame):
     
     def create_board(self):
         """Create the chess board GUI"""
-        # Board container - TRÈS GRANDE TAILLE
+        # Board container avec padding adaptatif
         board_container = tk.Frame(self, bg="#2c3e50")
-        board_container.pack(expand=True, fill=tk.BOTH, padx=60, pady=60)
+        board_container.pack(expand=True, fill=tk.BOTH, padx=15, pady=15)  # Augmenté : 10 → 15
         
-        # Calculer une taille TRÈS GRANDE
-        def calculate_very_large_size():
-            self.update_idletasks()
+        # Calculer une taille VRAIMENT ADAPTATIVE
+        def calculate_adaptive_size():
+            # Forcer une mise à jour pour obtenir les vraies dimensions
+            self.master.update_idletasks()
             
-            # Obtenir les dimensions disponibles
-            container_width = board_container.winfo_width() or 1200
-            container_height = board_container.winfo_height() or 900
+            # Obtenir les dimensions de la fenêtre parente
+            try:
+                root_widget = self.master
+                while root_widget.master:
+                    root_widget = root_widget.master
+                
+                window_width = root_widget.winfo_width()
+                window_height = root_widget.winfo_height()
+                
+                if window_width <= 1 or window_height <= 1:
+                    window_width = root_widget.winfo_screenwidth()
+                    window_height = root_widget.winfo_screenheight()
+                    
+            except:
+                window_width = 1200
+                window_height = 800
             
-            # Calculer une taille TRÈS GRANDE (95% de l'espace disponible)
-            available_size = min(container_width * 0.95, container_height * 0.95)
+            print(f"SIZING DEBUG: Window size: {window_width}x{window_height}")
+                        
+            # Calculer l'espace disponible (panneau droit plus petit)
+            panel_width = max(270, min(320, int(window_width * 0.20)))  # Augmenté : 18% → 20%
+            available_width = window_width - panel_width - 80   # Marge légèrement augmentée : 60 → 80
+            available_height = window_height - 140              # Marge légèrement augmentée : 120 → 140
             
-            # Taille TRÈS GRANDE - limites augmentées
-            min_size = 800   # Augmenté de 600 à 800
-            max_size = 1200  # Augmenté de 1000 à 1200
+            # Prendre plus d'espace disponible
+            available_size = min(available_width, available_height) * 0.88  # Réduit : 95% → 88%
+            
+            # Limites augmentées pour des échiquiers plus grands
+            min_size = max(480, int(window_width * 0.32))   # Légèrement réduit : 35% → 32%
+            max_size = max(850, int(window_width * 0.60))   # Légèrement réduit : 65% → 60%
+            
             board_size = max(min_size, min(max_size, available_size))
             
-            # Calculer les dimensions TRÈS GRANDES
-            button_size = max(80, int(board_size / 10))  # BEAUCOUP plus grand
-            font_size_large = max(24, int(button_size / 2.5))  # TRÈS grande police
-            font_size_small = max(16, int(button_size / 4))    # TRÈS grande police
+            # Calculer les dimensions des boutons (plus grands)
+            button_size = max(48, int(board_size / 9.5))    # Légèrement réduit : /9 → /9.5
+            font_size_large = max(18, int(button_size / 2.1)) # Légèrement réduit : /2 → /2.1
+            font_size_small = max(11, int(button_size / 4))
             
-            return button_size, font_size_large, font_size_small
+            print(f"SIZING DEBUG: Board size: {board_size}, Button size: {button_size}")
+            
+            return int(button_size), int(font_size_large), int(font_size_small)
         
-        # Calculer les tailles TRÈS GRANDES
-        button_size, font_large, font_small = calculate_very_large_size()
+        # Calculer les tailles adaptatives
+        button_size, font_large, font_small = calculate_adaptive_size()
         
         # Configuration EXACTE pour l'alignement parfait
-        BUTTON_PIXEL_WIDTH = button_size  # Largeur en pixels
-        ROW_LABEL_PIXEL_WIDTH = 50  # Plus large pour les labels
-        PADDING_BETWEEN = 2  # Espacement uniforme
+        BUTTON_PIXEL_WIDTH = button_size
+        ROW_LABEL_PIXEL_WIDTH = max(30, int(button_size * 0.6))  # Proportionnel
+        PADDING_BETWEEN = max(1, int(button_size / 40))  # Proportionnel
         
         # Style pour les labels de coordonnées
         label_style = {
             'bg': "#2c3e50",
             'fg': "#ecf0f1", 
             'font': ('Arial', font_small, 'bold'),
-            'width': 0,  # Pas de largeur en caractères
+            'width': 0,
             'anchor': 'center'
         }
         
-        # Top column labels - ALIGNEMENT PIXEL PARFAIT
+        # Top column labels
         top_col_frame = tk.Frame(board_container, bg="#2c3e50")
-        top_col_frame.pack(pady=(30, 8))
+        top_col_frame.pack(pady=(20, 6))  # Augmenté : (15, 4) → (20, 6)
         
-        # Espacement gauche EXACT
+        # Espacement gauche
         left_spacer = tk.Frame(top_col_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=1)
         left_spacer.pack(side=tk.LEFT)
         left_spacer.pack_propagate(False)
         
-        # Labels des colonnes a-h avec LARGEUR EXACTEMENT IDENTIQUE aux boutons
+        # Labels des colonnes a-h
         for col in "abcdefgh":
-            label_frame = tk.Frame(top_col_frame, bg="#2c3e50", width=BUTTON_PIXEL_WIDTH, height=35)
+            label_frame = tk.Frame(top_col_frame, bg="#2c3e50", width=BUTTON_PIXEL_WIDTH, height=30)  # Augmenté : 25 → 30
             label_frame.pack(side=tk.LEFT, padx=PADDING_BETWEEN)
             label_frame.pack_propagate(False)
             
             label = tk.Label(label_frame, text=col, **label_style)
             label.pack(expand=True, fill=tk.BOTH)
         
-        # Espacement droit EXACT
+        # Espacement droit
         right_spacer = tk.Frame(top_col_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=1)
         right_spacer.pack(side=tk.LEFT)
         right_spacer.pack_propagate(False)
@@ -144,7 +168,7 @@ class ChessBoard(tk.Frame):
             row_frame = tk.Frame(main_board_frame, bg="#2c3e50")
             row_frame.pack(pady=PADDING_BETWEEN)
             
-            # Label de rangée gauche EXACTE
+            # Label de rangée gauche
             left_label_frame = tk.Frame(row_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=BUTTON_PIXEL_WIDTH)
             left_label_frame.pack(side=tk.LEFT)
             left_label_frame.pack_propagate(False)
@@ -175,7 +199,7 @@ class ChessBoard(tk.Frame):
                 button.pack(expand=True, fill=tk.BOTH)
                 button_row.append(button)
             
-            # Label de rangée droit EXACTE
+            # Label de rangée droit
             right_label_frame = tk.Frame(row_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=BUTTON_PIXEL_WIDTH)
             right_label_frame.pack(side=tk.LEFT)
             right_label_frame.pack_propagate(False)
@@ -185,25 +209,25 @@ class ChessBoard(tk.Frame):
             
             self.buttons.append(button_row)
         
-        # Bottom column labels - CONFIGURATION EXACTEMENT IDENTIQUE
+        # Bottom column labels
         bottom_col_frame = tk.Frame(board_container, bg="#2c3e50")
-        bottom_col_frame.pack(pady=(8, 30))
+        bottom_col_frame.pack(pady=(6, 20))  # Augmenté : (4, 15) → (6, 20)
         
-        # Espacement gauche EXACT
+        # Espacement gauche
         left_spacer_bottom = tk.Frame(bottom_col_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=1)
         left_spacer_bottom.pack(side=tk.LEFT)
         left_spacer_bottom.pack_propagate(False)
         
-        # Labels colonnes avec LARGEUR EXACTEMENT IDENTIQUE
+        # Labels colonnes
         for col in "abcdefgh":
-            label_frame_bottom = tk.Frame(bottom_col_frame, bg="#2c3e50", width=BUTTON_PIXEL_WIDTH, height=35)
+            label_frame_bottom = tk.Frame(bottom_col_frame, bg="#2c3e50", width=BUTTON_PIXEL_WIDTH, height=30)
             label_frame_bottom.pack(side=tk.LEFT, padx=PADDING_BETWEEN)
             label_frame_bottom.pack_propagate(False)
             
             label_bottom = tk.Label(label_frame_bottom, text=col, **label_style)
             label_bottom.pack(expand=True, fill=tk.BOTH)
         
-        # Espacement droit EXACT
+        # Espacement droit
         right_spacer_bottom = tk.Frame(bottom_col_frame, bg="#2c3e50", width=ROW_LABEL_PIXEL_WIDTH, height=1)
         right_spacer_bottom.pack(side=tk.LEFT)
         right_spacer_bottom.pack_propagate(False)
@@ -215,7 +239,7 @@ class ChessBoard(tk.Frame):
         # Initialiser l'échiquier
         self.setup_initial_position()
         
-        print(f"DEBUG: Board created with button size: {button_size}px, font: {font_large}")  # Debug
+        print(f"SIZING DEBUG: Final - Button: {button_size}px, Font: {font_large}")
 
     def on_board_resize(self, event=None):
         """Handle board resize to maintain proportions."""
@@ -546,23 +570,28 @@ class RightPanel(tk.Frame):
     """Right panel with game controls and information"""
     
     def __init__(self, master, game_client):
-        # Calculer une largeur plus petite
         screen_width = master.winfo_screenwidth()
-        panel_width = max(280, min(350, int(screen_width * 0.22)))  # Réduit de 25% à 22%
         
+        if screen_width < 1200:
+            panel_width = 240  # Augmenté : 220 → 240
+        elif screen_width < 1600:
+            panel_width = 280  # Augmenté : 260 → 280  
+        else:
+            panel_width = 320  # Augmenté : 300 → 320
+            
         super().__init__(master, bg="#34495e", width=panel_width)
         self.game_client = game_client
-        self.pack_propagate(False)  # Maintain fixed width
+        self.pack_propagate(False)
         
-        print(f"DEBUG: Right panel width: {panel_width}px for screen width: {screen_width}px")
+        print(f"PANEL DEBUG: Screen {screen_width}px -> Panel {panel_width}px")
         
         self.create_panels()
     
     def create_panels(self):
-        """Create all panels in the right sidebar - VERSION PLUS GRANDE."""
+        """Create all panels in the right sidebar"""
         # Title avec police plus grande
         title_label = tk.Label(self, text="♔ Chess Control Panel ♛", 
-                              bg="#34495e", fg="white", font=('Arial', 18, 'bold'))
+                              bg="#34495e", fg="white", font=('Arial', 14, 'bold'))
         title_label.pack(pady=(25, 15), padx=25)
         
         # Game Status Panel
