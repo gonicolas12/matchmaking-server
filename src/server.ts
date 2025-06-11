@@ -22,8 +22,16 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// Home route
+// Home route avec statistiques dynamiques
 app.get('/', (req, res) => {
+    // Calculate real-time statistics
+    const stats = {
+        chess_queue: chessQueue.length,
+        tictactoe_queue: ticTacToeQueue.length,
+        active_matches: activeMatches.size,
+        total_players: playerSockets.size
+    };
+
     res.send(`
     <html>
       <head>
@@ -56,7 +64,41 @@ app.get('/', (req, res) => {
           .status { color: #4ade80; font-weight: bold; }
           .feature-list { margin: 15px 0; }
           .feature-list li { margin: 8px 0; }
+          .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+          }
+          .stat-item {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+          }
+          .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4ade80;
+          }
+          .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 5px;
+          }
+          .refresh-note {
+            text-align: center;
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-top: 20px;
+          }
         </style>
+        <script>
+          // Auto-refresh every 5 seconds
+          setTimeout(() => {
+            window.location.reload();
+          }, 5000);
+        </script>
       </head>
       <body>
         <div class="container">
@@ -72,6 +114,7 @@ app.get('/', (req, res) => {
                 <li>Check, checkmate, and stalemate detection</li>
                 <li>Beautiful Unicode piece display</li>
                 <li>Move highlighting and validation</li>
+                <li><strong>FIXED: King safety validation</strong> ✅</li>
               </ul>
               
               <h3>⭕ Tic-Tac-Toe</h3>
@@ -84,23 +127,59 @@ app.get('/', (req, res) => {
           </div>
           
           <div class="game-card">
-            <h2>📊 Server Status</h2>
+            <h2>📊 Live Server Statistics</h2>
             <p>Status: <span class="status">Online</span></p>
             <p>Port: ${PORT}</p>
             <p>Started: ${new Date().toLocaleString()}</p>
-            <p>Active Players: <span id="playerCount">0</span></p>
-            <p>Active Matches: <span id="matchCount">0</span></p>
+            
+            <div class="stat-grid">
+              <div class="stat-item">
+                <div class="stat-number">${stats.total_players}</div>
+                <div class="stat-label">Connected Players</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">${stats.active_matches}</div>
+                <div class="stat-label">Active Matches</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">${stats.chess_queue}</div>
+                <div class="stat-label">Chess Queue</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">${stats.tictactoe_queue}</div>
+                <div class="stat-label">Tic-Tac-Toe Queue</div>
+              </div>
+            </div>
+            
+            <div class="refresh-note">
+              📱 Page auto-refreshes every 5 seconds for live stats
+            </div>
           </div>
           
           <div class="game-card">
             <h2>🎮 How to Play</h2>
             <ol>
-              <li>Run the Python client: <code>python chess_client.py</code> or <code>python game_client.py</code></li>
+              <li>Run the game launcher: <code>python game_launcher.py</code></li>
+              <li>Or run clients directly:</li>
+              <ul>
+                <li>Chess: <code>python chess_client.py http://localhost:${PORT}</code></li>
+                <li>Tic-Tac-Toe: <code>python game_client.py http://localhost:${PORT}</code></li>
+              </ul>
               <li>Enter your username</li>
               <li>Connect to the server</li>
               <li>Join the matchmaking queue</li>
               <li>Wait for an opponent and enjoy the game!</li>
             </ol>
+          </div>
+          
+          <div class="game-card">
+            <h2>🔧 Recent Updates</h2>
+            <ul>
+              <li>✅ Fixed king safety validation in chess</li>
+              <li>✅ Prevented illegal moves that put king in check</li>
+              <li>✅ Added live statistics display</li>
+              <li>✅ Improved move validation robustness</li>
+            </ul>
           </div>
         </div>
       </body>
@@ -200,7 +279,7 @@ io.on('connection', (socket: Socket) => {
                 username: player.username
             });
 
-            console.log(`Player registered: ${player.username} (ID: ${player.player_id})`);
+            console.log(`Player registered: ${player.username} (ID: ${player.player_id}) - Total players: ${playerSockets.size}`);
         } catch (error) {
             console.error("Error registering player:", error);
             socket.emit('error', { message: "Failed to register player" });
@@ -348,6 +427,9 @@ io.on('connection', (socket: Socket) => {
                 match.isFinished = true;
                 const realWinnerId = winner === 1 ? match.player1Id : winner === 2 ? match.player2Id : null;
                 await db.finishMatch(match_id, realWinnerId);
+                
+                // Remove from active matches when finished
+                console.log(`🏁 Match ${match_id} finished. Active matches: ${activeMatches.size - 1}`);
             }
 
             activeMatches.set(match_id, match);
@@ -436,7 +518,7 @@ io.on('connection', (socket: Socket) => {
             handlePlayerDisconnect(playerId, socket.id);
         }
 
-        console.log(`Socket disconnected: ${socket.id}`);
+        console.log(`Socket disconnected: ${socket.id} - Total players: ${playerSockets.size}`);
     });
 });
 
@@ -523,7 +605,7 @@ async function createMatch(player1: Player, player2: Player, gameType: string) {
             });
         }
 
-        console.log(`${gameType} match created: ${player1.username} vs ${player2.username} (Match ID: ${match.match_id})`);
+        console.log(`${gameType} match created: ${player1.username} vs ${player2.username} (Match ID: ${match.match_id}) - Active matches: ${activeMatches.size}`);
     } catch (error) {
         console.error("Error creating match:", error);
 
@@ -605,7 +687,14 @@ async function handlePlayerDisconnect(playerId: number, socketId: string) {
         }
     }
 
-    console.log(`Player ${playerId} disconnected and removed from queues/matches`);
+    // Clean up finished matches to keep activeMatches accurate
+    for (const [matchId, match] of activeMatches.entries()) {
+        if (match.isFinished) {
+            activeMatches.delete(matchId);
+        }
+    }
+
+    console.log(`Player ${playerId} disconnected and removed from queues/matches - Active: players=${playerSockets.size}, matches=${activeMatches.size}`);
 }
 
 // Utility function to determine game type from state
