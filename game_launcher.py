@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-Game Launcher for Matchmaking Server - FIXED VERSION
+Game Launcher for Matchmaking Server
 
 This script allows users to choose between Chess and Tic-Tac-Toe
 and launches the appropriate client with proper IP handling.
