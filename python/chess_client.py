@@ -682,21 +682,43 @@ class RightPanel(tk.Frame):
             print("🔧 MANUAL TURN FORCE-ENABLED by user")
     
     def create_captured_panel(self):
-        """Create the captured pieces panel"""
+        """Create the captured pieces panel with scrollable content"""
         captured_frame = tk.LabelFrame(self, text="Captured Pieces", 
-                                     bg="#2c3e50", fg="white", font=('Arial', 14, 'bold'),
-                                     relief=tk.RAISED, bd=2)
-        captured_frame.pack(fill=tk.X, padx=25, pady=(0, 20))
+                                    bg="#2c3e50", fg="white", font=('Arial', 14, 'bold'),
+                                    relief=tk.RAISED, bd=2)
+        captured_frame.pack(fill=tk.BOTH, expand=True, padx=25, pady=(0, 20))
         
-        self.captured_white_label = tk.Label(captured_frame, text="White: ", 
-                                           bg="#2c3e50", fg="white", font=('Arial', 12),
-                                           wraplength=350, justify=tk.LEFT)
-        self.captured_white_label.pack(pady=(15, 8), padx=20, anchor=tk.W)
+        # Create a canvas and scrollbar for scrollable content
+        canvas = tk.Canvas(captured_frame, bg="#2c3e50", highlightthickness=0, height=120)
+        scrollbar = tk.Scrollbar(captured_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg="#2c3e50")
         
-        self.captured_black_label = tk.Label(captured_frame, text="Black: ",
-                                           bg="#2c3e50", fg="white", font=('Arial', 12),
-                                           wraplength=350, justify=tk.LEFT)
-        self.captured_black_label.pack(pady=(0, 15), padx=20, anchor=tk.W)
+        # Configure scrolling
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True, padx=(15, 0), pady=15)
+        scrollbar.pack(side="right", fill="y", pady=15, padx=(0, 15))
+        
+        # Create labels inside scrollable frame
+        self.captured_white_label = tk.Label(scrollable_frame, text="White: ", 
+                                        bg="#2c3e50", fg="white", font=('Arial', 12),
+                                        justify=tk.LEFT, anchor="w")
+        self.captured_white_label.pack(fill="x", pady=(5, 3), padx=10)
+        
+        self.captured_black_label = tk.Label(scrollable_frame, text="Black: ",
+                                        bg="#2c3e50", fg="white", font=('Arial', 12),
+                                        justify=tk.LEFT, anchor="w")
+        self.captured_black_label.pack(fill="x", pady=(3, 5), padx=10)
+        
+        # Store canvas reference for scroll updates
+        self.captured_canvas = canvas
     
     def toggle_pieces(self):
         """Toggle piece display style."""
@@ -721,20 +743,59 @@ class RightPanel(tk.Frame):
             self.turn_label.config(text=f"⏳ {color_name}'s turn", fg="#e74c3c")
     
     def update_captured_pieces(self, captured):
-        """Update the display of captured pieces."""
+        """Update the display of captured pieces with better formatting"""
         symbols = PIECE_SYMBOLS  # Always use Unicode for captured pieces
         
         white_pieces = ""
         black_pieces = ""
         
+        # Group pieces by type for better organization
+        white_counts = {}
+        black_counts = {}
+        
         for piece in captured.get("white", []):
-            white_pieces += symbols[piece["color"]][piece["type"]] + " "
+            piece_type = piece["type"]
+            if piece_type in white_counts:
+                white_counts[piece_type] += 1
+            else:
+                white_counts[piece_type] = 1
         
         for piece in captured.get("black", []):
-            black_pieces += symbols[piece["color"]][piece["type"]] + " "
+            piece_type = piece["type"]
+            if piece_type in black_counts:
+                black_counts[piece_type] += 1
+            else:
+                black_counts[piece_type] = 1
         
-        self.captured_white_label.config(text=f"White: {white_pieces}")
-        self.captured_black_label.config(text=f"Black: {black_pieces}")
+        # Create organized display with counts
+        piece_order = ["queen", "rook", "bishop", "knight", "pawn"]
+        
+        for piece_type in piece_order:
+            if piece_type in white_counts:
+                symbol = symbols[1][piece_type]  # White pieces (color 1)
+                count = white_counts[piece_type]
+                if count > 1:
+                    white_pieces += f"{symbol}×{count} "
+                else:
+                    white_pieces += f"{symbol} "
+        
+        for piece_type in piece_order:
+            if piece_type in black_counts:
+                symbol = symbols[2][piece_type]  # Black pieces (color 2)
+                count = black_counts[piece_type]
+                if count > 1:
+                    black_pieces += f"{symbol}×{count} "
+                else:
+                    black_pieces += f"{symbol} "
+        
+        # Update labels
+        self.captured_white_label.config(text=f"White: {white_pieces.strip() if white_pieces else 'None'}")
+        self.captured_black_label.config(text=f"Black: {black_pieces.strip() if black_pieces else 'None'}")
+        
+        # Update scroll region
+        if hasattr(self, 'captured_canvas'):
+            self.captured_canvas.update_idletasks()
+            self.captured_canvas.configure(scrollregion=self.captured_canvas.bbox("all"))
 
 
 class ChessGameClient:
